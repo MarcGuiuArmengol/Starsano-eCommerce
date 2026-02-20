@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useCart } from '../context/CartContext';
+import logo from '../logo.png';
 
 const Navbar: React.FC = () => {
   const { setIsCartOpen, cartCount } = useCart();
@@ -15,7 +16,7 @@ const Navbar: React.FC = () => {
         <div className="flex h-20 items-center justify-between gap-4">
           {/* Logo */}
           <Link to="/" className="flex items-center gap-2 shrink-0 group">
-            <img src="/logo.png" alt="Starsano Logo" className="h-12 w-auto object-contain transition-transform duration-300 group-hover:scale-105" />
+            <img src={logo} alt="Starsano Logo" className="h-12 w-auto object-contain transition-transform duration-300 group-hover:scale-105" />
           </Link>
 
           {/* Desktop Menu */}

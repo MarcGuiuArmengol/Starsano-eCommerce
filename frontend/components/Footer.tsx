@@ -1,5 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
+import logo from '../logo.png';
 
 const Footer: React.FC = () => {
   return (
@@ -9,7 +10,7 @@ const Footer: React.FC = () => {
           {/* Brand Info */}
           <div>
             <Link to="/" className="flex items-center gap-2 mb-6">
-              <img src="/logo.png" alt="Starsano Logo" className="h-10 w-auto object-contain" />
+              <img src={logo} alt="Starsano Logo" className="h-10 w-auto object-contain" />
             </Link>
             <p className="text-sm leading-relaxed mb-6 text-white/70">
               Selección consciente para una vida plena. Productos naturales y orgánicos que respetan tu cuerpo y el planeta.

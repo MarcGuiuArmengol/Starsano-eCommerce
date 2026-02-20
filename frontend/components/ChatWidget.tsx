@@ -4,10 +4,10 @@ const ChatWidget: React.FC = () => {
     const [isOpen, setIsOpen] = useState(false);
 
     return (
-        <div className="fixed bottom-6 right-6 z-[100] flex flex-col items-end">
+        <div className="fixed bottom-4 right-4 z-[100] flex flex-col items-end">
             {/* Chat Window */}
             {isOpen && (
-                <div className="mb-4 w-80 sm:w-96 bg-background-card rounded-2xl shadow-2xl border border-border overflow-hidden animate-slideUp flex flex-col h-[500px]">
+                <div className="mb-2 w-80 sm:w-96 bg-background-card rounded-2xl shadow-2xl border border-border overflow-hidden animate-slideUp flex flex-col h-[500px]">
                     {/* Header */}
                     <div className="bg-cta-gradient p-4 text-white flex justify-between items-center shrink-0">
                         <div className="flex items-center gap-3">
