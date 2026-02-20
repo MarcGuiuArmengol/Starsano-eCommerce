@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="es" class="light">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Starsano | Salud y Bienestar Integral</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=Inter:wght@300;400;500;600&family=Poppins:wght@300;400;500;600&display=swap"
+      rel="stylesheet"
+    />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0"
+    />
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <script>
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            colors: {
+              background: "#EFECEC", // Beige claro fondo
+              foreground: "#252525", // Texto principal oscuro
+              "background-contrast": "#B5A7A7", // Bordes/Separadores
+              
+              primary: "#2C332F", // Boton primario (Gris oscuro/Verdoso)
+              "primary-foreground": "#FFFFFF", // Texto boton
+              
+              secondary: "#505655", // Texto secundario / Links
+              "secondary-button": "#EFECEC",
+              
+              accent: "#AD910A", // Dorado reviews
+              "accent-light": "rgba(173, 145, 10, 0.1)",
+              
+              white: "#FFFFFF",
+            },
+            fontFamily: {
+              sans: ["Inter", "sans-serif"],
+              serif: ["DM Serif Display", "serif"],
+              heading: ["Poppins", "sans-serif"],
+            },
+            animation: {
+              'fadeIn': 'fadeIn 0.5s ease-out forwards',
+              'slideUp': 'slideUp 0.6s ease-out forwards',
+            },
+            keyframes: {
+              fadeIn: {
+                '0%': { opacity: '0' },
+                '100%': { opacity: '1' },
+              },
+              slideUp: {
+                '0%': { opacity: '0', transform: 'translateY(20px)' },
+                '100%': { opacity: '1', transform: 'translateY(0)' },
+              }
+            }
+          },
+        },
+      };
+    </script>
+    <style>
+      body {
+        font-family: "Inter", sans-serif;
+        background-color: #EFECEC;
+        color: #252525;
+      }
+      h1, h2, h3, h4, h5, h6 {
+        font-family: "DM Serif Display", serif;
+        color: #252525;
+        letter-spacing: 0.02em;
+      }
+      .font-heading {
+        font-family: "Poppins", sans-serif;
+      }
+      .material-symbols-outlined {
+        font-variation-settings: "FILL" 0, "wght" 300, "GRAD" 0, "opsz" 24;
+      }
+      /* Custom scrollbar */
+      ::-webkit-scrollbar {
+        width: 6px;
+      }
+      ::-webkit-scrollbar-track {
+        background: #EFECEC;
+      }
+      ::-webkit-scrollbar-thumb {
+        background: #B5A7A7;
+        border-radius: 3px;
+      }
+      ::-webkit-scrollbar-thumb:hover {
+        background: #505655;
+      }
+    </style>
+  <script type="importmap">
+{
+  "imports": {
+    "react-dom/": "https://esm.sh/react-dom@^19.2.4/",
+    "react-router-dom": "https://esm.sh/react-router-dom@^7.13.0",
+    "react/": "https://esm.sh/react@^19.2.4/",
+    "react": "https://esm.sh/react@^19.2.4"
+  }
+}
+</script>
+<link rel="stylesheet" href="/index.css">
+</head>
+  <body class="bg-background text-foreground antialiased selection:bg-primary selection:text-white">
+    <div id="root"></div>
+  <script type="module" src="/index.tsx"></script>
+</body>
+</html>
