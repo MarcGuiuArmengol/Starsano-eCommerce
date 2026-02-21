@@ -7,7 +7,7 @@ const Shop: React.FC = () => {
     const [products, setProducts] = useState<Product[]>([]);
     const [loading, setLoading] = useState(true);
     const [selectedCategory, setSelectedCategory] = useState<string>('all');
-    const [priceRange, setPriceRange] = useState<number>(50);
+    const [selectedBadges, setSelectedBadges] = useState<string[]>([]);
     const [searchQuery, setSearchQuery] = useState('');
 
     React.useEffect(() => {
@@ -34,11 +34,18 @@ const Shop: React.FC = () => {
     const filteredProducts = useMemo(() => {
         return products.filter((product: Product) => {
             const matchCategory = selectedCategory === 'all' || product.category === selectedCategory;
-            const matchPrice = product.price <= priceRange;
             const matchSearch = product.name.toLowerCase().includes(searchQuery.toLowerCase());
-            return matchCategory && matchPrice && matchSearch;
+            const matchBadges = selectedBadges.length === 0 ||
+                selectedBadges.every(badge => product.badges?.includes(badge));
+            return matchCategory && matchSearch && matchBadges;
         });
-    }, [products, selectedCategory, priceRange, searchQuery]);
+    }, [products, selectedCategory, selectedBadges, searchQuery]);
+
+    const toggleBadge = (badge: string) => {
+        setSelectedBadges(prev =>
+            prev.includes(badge) ? prev.filter(b => b !== badge) : [...prev, badge]
+        );
+    };
 
     return (
         <div className="bg-background min-h-screen">
@@ -93,20 +100,28 @@ const Shop: React.FC = () => {
                                     </div>
                                 </div>
 
-                                {/* Price Filter */}
+                                {/* Badge Filters */}
                                 <div>
-                                    <h3 className="font-heading text-xs font-bold text-foreground uppercase tracking-widest mb-6">Precio</h3>
-                                    <input
-                                        type="range"
-                                        min="0"
-                                        max="50"
-                                        step="1"
-                                        value={priceRange}
-                                        onChange={(e) => setPriceRange(Number(e.target.value))}
-                                        className="w-full h-1 bg-background-contrast/30 rounded-lg appearance-none cursor-pointer accent-primary"
-                                    />
-                                    <div className="flex justify-between text-xs text-secondary mt-2 font-mono">
-                                        <span>Max: {priceRange.toFixed(2)} €</span>
+                                    <h3 className="font-heading text-xs font-bold text-foreground uppercase tracking-widest mb-6 font-bold">Filtros</h3>
+                                    <div className="space-y-3">
+                                        {[
+                                            { label: 'Orgánicos', value: 'Organic' },
+                                            { label: 'Sin Azúcar', value: 'Sugar Free' },
+                                            { label: 'Sin Gluten', value: 'Gluten Free' }
+                                        ].map(filter => (
+                                            <div key={filter.value} className="flex items-center gap-3 cursor-pointer group" onClick={() => toggleBadge(filter.value)}>
+                                                <div
+                                                    className={`w-5 h-5 border flex items-center justify-center transition-all ${selectedBadges.includes(filter.value) ? 'bg-primary border-primary' : 'border-slate-300 group-hover:border-primary'}`}
+                                                >
+                                                    {selectedBadges.includes(filter.value) && (
+                                                        <span className="material-symbols-outlined text-white text-base">check</span>
+                                                    )}
+                                                </div>
+                                                <span className={`text-sm transition-colors ${selectedBadges.includes(filter.value) ? 'text-primary font-bold' : 'text-secondary group-hover:text-foreground'}`}>
+                                                    {filter.label}
+                                                </span>
+                                            </div>
+                                        ))}
                                     </div>
                                 </div>
                             </div>
@@ -129,7 +144,7 @@ const Shop: React.FC = () => {
                                     <h3 className="text-lg font-bold text-foreground">Sin resultados</h3>
                                     <p className="text-secondary font-light">Intenta ajustar tus filtros de búsqueda.</p>
                                     <button
-                                        onClick={() => { setSelectedCategory('all'); setSearchQuery(''); setPriceRange(50); }}
+                                        onClick={() => { setSelectedCategory('all'); setSearchQuery(''); setSelectedBadges([]); }}
                                         className="mt-4 text-primary border-b border-primary pb-0.5 text-sm font-bold hover:text-accent hover:border-accent"
                                     >
                                         Limpiar filtros

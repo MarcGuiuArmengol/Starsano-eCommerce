@@ -1,0 +1,374 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Starsano | Salud y Bienestar Integral (Demo)</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;700&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet"
+        href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" />
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: {
+                            DEFAULT: '#F97316',
+                            hover: '#EA580C',
+                            foreground: '#FFFFFF',
+                        },
+                        brand: {
+                            dark: '#8B4513',
+                            soft: '#A16207',
+                        },
+                        secondary: {
+                            DEFAULT: '#64748B',
+                            foreground: '#FFFFFF',
+                        },
+                        accent: {
+                            DEFAULT: '#F97316',
+                            foreground: '#FFFFFF',
+                        },
+                        background: {
+                            DEFAULT: '#F8FAFC',
+                            alt: '#FFF7ED',
+                            card: '#FFFFFF',
+                        },
+                        foreground: {
+                            DEFAULT: '#1E293B',
+                            muted: '#64748B',
+                        },
+                        border: '#E2E8F0',
+                        success: '#16A34A',
+                        error: '#DC2626',
+                    },
+                    backgroundImage: {
+                        'cta-gradient': 'linear-gradient(to right, #F97316, #FB923C)',
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                        heading: ['Outfit', 'sans-serif'],
+                        serif: ['DM Serif Display', 'serif'],
+                    },
+                    animation: {
+                        'slideUp': 'slideUp 0.6s ease-out forwards',
+                        'fadeIn': 'fadeIn 0.5s ease-out forwards',
+                    },
+                    keyframes: {
+                        slideUp: {
+                            '0%': { opacity: '0', transform: 'translateY(20px)' },
+                            '100%': { opacity: '1', transform: 'translateY(0)' },
+                        },
+                        fadeIn: {
+                            '0%': { opacity: '0' },
+                            '100%': { opacity: '1' },
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        @layer base {
+            body {
+                @apply antialiased text-foreground bg-background font-sans;
+            }
+
+            h1,
+            h2,
+            h3,
+            h4,
+            h5,
+            h6 {
+                @apply font-serif;
+            }
+        }
+
+        .font-heading {
+            font-family: 'Outfit', sans-serif;
+        }
+
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+
+        .material-symbols-outlined.filled {
+            font-variation-settings: 'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+
+        .hidden-page {
+            display: none;
+        }
+
+        .active-page {
+            display: block;
+            animation: fadeIn 0.5s ease-out;
+        }
+    </style>
+</head>
+
+<body class="selection:bg-primary selection:text-white">
+
+    <!-- NAVBAR -->
+    <header
+        class="sticky top-0 z-50 w-full bg-white/90 backdrop-blur-md border-b border-primary/5 shadow-sm transition-all duration-300">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex h-20 items-center justify-between gap-4">
+                <a href="#" onclick="navigateTo('home')" class="flex items-center gap-2 shrink-0 group">
+                    <img src="logo.png" alt="Starsano Logo"
+                        class="h-12 w-auto object-contain transition-transform duration-300 group-hover:scale-105"
+                        onerror="this.src='https://via.placeholder.com/150x50?text=STARSANO'">
+                </a>
+                <nav class="hidden lg:flex items-center gap-8">
+                    <a href="#" onclick="navigateTo('home')" id="nav-home"
+                        class="text-xs font-bold uppercase tracking-widest hover:text-primary transition-colors text-primary">Inicio</a>
+                    <a href="#" onclick="navigateTo('shop')" id="nav-shop"
+                        class="text-xs font-bold uppercase tracking-widest hover:text-primary transition-colors text-secondary">Tienda</a>
+                    <a href="#" onclick="navigateTo('blog')" id="nav-blog"
+                        class="text-xs font-bold uppercase tracking-widest hover:text-primary transition-colors text-secondary">Journal</a>
+                    <a href="#"
+                        class="text-xs font-bold uppercase tracking-widest hover:text-primary transition-colors text-secondary">Contacto</a>
+                </nav>
+                <div class="flex items-center gap-4 flex-1 justify-end">
+                    <div class="hidden md:flex relative max-w-[200px] w-full group">
+                        <input id="demo-search"
+                            class="w-full bg-transparent border-b border-secondary/20 py-1.5 pl-0 pr-6 text-xs focus:border-accent focus:ring-0 text-foreground placeholder:text-secondary/50 transition-all font-medium"
+                            type="text" placeholder="BUSCAR..." oninput="handleSearch(this.value)">
+                        <span
+                            class="material-symbols-outlined absolute right-0 top-1/2 -translate-y-1/2 text-secondary/50 text-lg group-focus-within:text-accent transition-colors">search</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <div id="pages-container">
+
+        <!-- 1. HOME PAGE -->
+        <div id="page-home" class="active-page">
+            <section
+                class="relative w-full h-[90vh] flex items-center justify-center overflow-hidden bg-primary/95 text-white">
+                <div class="absolute inset-0 z-0 opacity-40">
+                    <img src="https://images.unsplash.com/photo-1515023115689-589c33041697?q=80&w=2940&auto=format&fit=crop"
+                        class="w-full h-full object-cover">
+                </div>
+                <div class="relative z-10 text-center px-4 max-w-4xl animate-slideUp">
+                    <p
+                        class="font-heading text-xs md:text-sm uppercase tracking-[0.3em] text-accent mb-6 font-semibold">
+                        Bienestar Natural</p>
+                    <h1 class="text-6xl md:text-8xl mb-8 leading-tight">Eleva tu <span
+                            class="italic font-light">cuerpo</span> <br /> y tu mente.</h1>
+                    <p class="text-lg md:text-xl text-white/80 font-light mb-10 max-w-2xl mx-auto leading-relaxed">Una
+                        curaduría de productos orgánicos y suplementos naturales diseñados para tu mejor versión.</p>
+                    <div class="flex flex-col sm:flex-row items-center justify-center gap-4">
+                        <button onclick="navigateTo('shop')"
+                            class="w-full sm:w-auto px-10 py-4 bg-white text-primary font-bold uppercase tracking-widest text-sm hover:bg-accent hover:text-white transition-all duration-300">Comprar
+                            Ahora</button>
+                    </div>
+                </div>
+            </section>
+
+            <section class="py-24 px-4 bg-background">
+                <div class="max-w-7xl mx-auto">
+                    <div class="flex justify-between items-end mb-12">
+                        <h2 class="text-4xl text-foreground">Colecciones</h2>
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div class="group relative h-[500px] overflow-hidden cursor-pointer"
+                            onclick="navigateTo('shop', 'snacks')">
+                            <img src="https://lh3.googleusercontent.com/aida-public/AB6AXuC-MQKf1Xtg4Q4wiuljZ7Q2udgX5iUPv2WKEpYhCbQcVYpKR4a2J1LWLaaY0CLHZekMy8rNmSauYJgxMn8_Nx4Tg8EkDL7bKctacoLTJXKlxSKIXO--YpftS_j5XDQ5JCTPUStCfw3p9sFZg19CByA1eRl0RNep8Vek4wuUQAr0k29SorxMPvnnI6OhUrrDsCcV642ngL6HM8gyox2Kqbfo4oZ79nWQihXqmOGUftlaoaIz8AVFmJutxpj-H38Ewpx-r6sIr8WFVfk"
+                                class="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-105">
+                            <div class="absolute inset-0 bg-black/10 group-hover:bg-black/20 transition-colors"></div>
+                            <div class="absolute bottom-8 left-8 bg-white/90 backdrop-blur px-6 py-4">
+                                <h3 class="text-2xl text-foreground m-0">Sin Gluten</h3>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </div>
+
+        <!-- 2. SHOP PAGE -->
+        <div id="page-shop" class="hidden-page">
+            <div class="bg-primary text-white py-16 px-4 text-center">
+                <h1 class="text-4xl md:text-5xl mb-2">Tienda</h1>
+            </div>
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+                <div class="flex flex-col lg:flex-row gap-12">
+                    <aside class="w-full lg:w-64 flex-shrink-0">
+                        <div class="sticky top-24 space-y-10">
+                            <div>
+                                <h3
+                                    class="font-heading text-xs font-bold text-foreground uppercase tracking-widest mb-6 border-b pb-2">
+                                    Categorías</h3>
+                                <div class="space-y-4" id="category-filters">
+                                    <!-- Rendered by JS -->
+                                </div>
+                            </div>
+                            <div>
+                                <h3
+                                    class="font-heading text-xs font-bold text-foreground uppercase tracking-widest mb-6 font-bold">
+                                    Filtros</h3>
+                                <div class="space-y-3" id="badge-filters">
+                                    <!-- Rendered by JS -->
+                                </div>
+                            </div>
+                        </div>
+                    </aside>
+                    <div class="flex-1">
+                        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-10"
+                            id="shop-product-grid">
+                            <!-- Rendered by JS -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 3. PRODUCT DETAIL PAGE -->
+        <div id="page-detail" class="hidden-page">
+            <div class="max-w-7xl mx-auto px-4 py-10">
+                <button onclick="navigateTo('shop')"
+                    class="text-xs font-bold uppercase tracking-widest text-secondary mb-8 hover:text-primary">← Volver
+                    a tienda</button>
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-12">
+                    <img id="detail-image" src="" class="w-full aspect-square object-cover bg-white">
+                    <div>
+                        <div id="detail-badges" class="mb-4 flex gap-2"></div>
+                        <h1 id="detail-title" class="text-5xl text-foreground mb-4"></h1>
+                        <span id="detail-price" class="text-3xl font-light block mb-8"></span>
+                        <p id="detail-description" class="text-secondary leading-relaxed mb-10"></p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 4. BLOG PAGE -->
+        <div id="page-blog" class="hidden-page">
+            <div class="py-20 text-center border-b border-slate-100 mb-12">
+                <h1 class="text-5xl md:text-8xl text-foreground mb-6">El Journal</h1>
+            </div>
+            <div class="max-w-7xl mx-auto px-4 pb-24 grid grid-cols-1 md:grid-cols-3 gap-12" id="blog-posts-grid"></div>
+        </div>
+    </div>
+
+    <!-- FOOTER -->
+    <footer class="bg-primary text-white py-20 mt-auto">
+        <div class="max-w-7xl mx-auto px-4 text-center">
+            <img src="logo.png" class="h-10 mx-auto mb-8"
+                onerror="this.src='https://via.placeholder.com/150x50?text=STARSANO'">
+            <p class="text-white/60 text-sm">© 2026 Starsano. Todos los derechos reservados.</p>
+        </div>
+    </footer>
+
+    <!-- LOGIC -->
+    <script>
+        const PRODUCTS = [
+            { id: "p1", name: "Mantequilla de Almendras", price: 8.5, description: "100% natural, sin aditivos. Perfecta para untar o añadir a tus batidos proteicos.", image: "https://lh3.googleusercontent.com/aida-public/AB6AXuBQH8efSf55dRiSihq8QOyOxTxKNVoAmGN4wJ-6M7Ps4nz5VP8DrckXIExBcTl34p9Mw37BHcE2KXFTrXRwU81XiQXuSGVas6wZSZ3IXTEnLDRWEmitCcLGtrzj39x0dkxBt39BuKlcOse3GehAfdeONvv708sZOUt37Up48pkZYQ-SfGixM3NRbzfoI2jkacVu-RrjvCqKLbbGGFNmDkAxxnOn7Ox_XPZBf1vnsFVWURVT5sAlnHx2rd0OaMM_CMPy3UpwQVCewPs", category: "snacks", badges: ["Organic", "Keto"], rating: 4.8 },
+            { id: "p2", name: "Quinoa Real Blanca", price: 4.95, description: "Altamente nutritiva, 500g. Fuente excelente de proteína vegetal y fibra.", image: "https://lh3.googleusercontent.com/aida-public/AB6AXuAFWhbhncBfTLJV1f4psa9yICQJDsj872swMKsNk5krFc1y1fWUQT29-Dj3jp8BoWvGobA9JhsozevG0HbK-7k9Gb_bhO4ZnmrnxB0c1MLezWO_NrEVYRLj57muWTDhP-uzvnEGRtlCx4rAK_IFIEKLZQ2NCdteJ62eVyPlz2EgSJCbCYC9IMCwwCzOns-8S0cxNLjHCZsymrICy2fxwl2aOemNxsgXdrltJuELgZViXHw1gYmjfBNKEg9L8wlgmLRz51bRFflvUGM", category: "gluten-free", badges: ["Organic", "Gluten Free"], rating: 4.5 },
+            { id: "p3", name: "Granola Crunchy Sin Azúcar", price: 6.2, description: "Mix de avena y nueces horneado lentamente para obtener el crujido perfecto sin azúcar añadido.", image: "https://lh3.googleusercontent.com/aida-public/AB6AXuAepgR8kq9BVR6YalmFWYPrgQNBlx7ArVYtZuOmt1GZiE6NKM8WthQgcVLywKtNTQ5WsvF75Nop-AGxlN4HLEdSNaxYigRMTvC75SrlqIEyQUBxExsZsrTRXA6Wj41Zx1AwipV0qrb_2meHRP3XyqovQz75drSJ4eXTNvX-AswDuDw6u8TzzzWW7DRxnrzfyLH2TiZZYB8mZEjspdS-Dan_SrVo59aK7rw6n0r_XkajXVlhuJTnLr2zq4lXIaBFKQ93N5s9OZFaVUQ", category: "snacks", badges: ["Sugar Free"], rating: 4.9 },
+            { id: "p4", name: "Harina de Almendras Fina", price: 12.9, description: "Ideal para repostería Keto. Molienda extra fina para macarons y bizcochos esponjosos.", image: "https://lh3.googleusercontent.com/aida-public/AB6AXuAbfUwLr7m8wxoMLTtLrwbBw9kAICddplwb7aJmtqoq6TeLwv4bvB-fby4jKxTZ6v9Q2z83xvVe7vIt5-E3KRozsJf1GK0dZW3pvhv2ESoFqZSfhoenOJl4LWZwmCZ5sLnHBQ-mvCrxsML8yIQ-J-KzP5paDgUBSNhBYekUmkV4ngw7PfdUtn4HbLAii8asQ61OT1TrmeviNXQLOO4gUgZyqJTMDvfvbeXtnYi8DpnCQRW-FKTKKuX9zIiYjopaBU_XKuZwBjwuuoA", category: "flours", badges: ["Keto", "Gluten Free"], rating: 4.7 }
+        ];
+
+        let state = {
+            page: 'home',
+            category: 'all',
+            badges: [],
+            search: ''
+        };
+
+        const FILTERS = [
+            { label: 'Orgánicos', value: 'Organic' },
+            { label: 'Sin Azúcar', value: 'Sugar Free' },
+            { label: 'Sin Gluten', value: 'Gluten Free' }
+        ];
+
+        function render() {
+            // Category Buttons
+            const cats = [
+                { name: 'Ver todo', slug: 'all' },
+                { name: 'Sin Gluten', slug: 'gluten-free' },
+                { name: 'Harinas', slug: 'flours' },
+                { name: 'Snacks', slug: 'snacks' }
+            ];
+            document.getElementById('category-filters').innerHTML = cats.map(c => `
+                <button onclick="handleCategory('${c.slug}')" class="block w-full text-left text-sm transition-all ${state.category === c.slug ? 'text-primary font-bold translate-x-1' : 'text-secondary hover:text-foreground'}">
+                    ${c.name}
+                </button>
+            `).join('');
+
+            // Badge Filters (NEW)
+            document.getElementById('badge-filters').innerHTML = FILTERS.map(f => `
+                <div class="flex items-center gap-3 cursor-pointer group" onclick="toggleBadge('${f.value}')">
+                    <div class="w-5 h-5 border flex items-center justify-center transition-all ${state.badges.includes(f.value) ? 'bg-primary border-primary' : 'border-slate-300 group-hover:border-primary'}">
+                        ${state.badges.includes(f.value) ? '<span class="material-symbols-outlined text-white text-base">check</span>' : ''}
+                    </div>
+                    <span class="text-sm transition-colors ${state.badges.includes(f.value) ? 'text-primary font-bold' : 'text-secondary group-hover:text-foreground'}">${f.label}</span>
+                </div>
+            `).join('');
+
+            // Product Grid
+            const filtered = PRODUCTS.filter(p => {
+                const mCat = state.category === 'all' || p.category === state.category;
+                const mSearch = p.name.toLowerCase().includes(state.search.toLowerCase());
+                const mBadges = state.badges.length === 0 || state.badges.every(b => p.badges.includes(b));
+                return mCat && mSearch && mBadges;
+            });
+            document.getElementById('shop-product-grid').innerHTML = filtered.map(p => `
+                <div class="group bg-white border border-primary/5 p-4 hover:shadow-xl transition-all">
+                    <img src="${p.image}" class="w-full aspect-square object-cover mb-4 cursor-pointer" onclick="viewDetail('${p.id}')">
+                    <h3 class="text-lg font-bold mb-2">${p.name}</h3>
+                    <div class="flex justify-between items-center">
+                        <span class="font-bold">${p.price.toFixed(2)} €</span>
+                        <button class="bg-primary text-white p-2 rounded-full"><span class="material-symbols-outlined">shopping_bag</span></button>
+                    </div>
+                </div>
+            `).join('') || '<div class="col-span-full py-20 text-center text-secondary">Sin resultados</div>';
+        }
+
+        function navigateTo(p, cat = 'all') {
+            state.page = p;
+            state.category = cat;
+            document.querySelectorAll('#pages-container > div').forEach(d => { d.classList.remove('active-page'); d.classList.add('hidden-page'); });
+            document.getElementById('page-' + p).classList.add('active-page');
+            document.querySelectorAll('nav a').forEach(a => {
+                a.classList.remove('text-primary'); a.classList.add('text-secondary');
+                if (a.id === 'nav-' + p) { a.classList.add('text-primary'); a.classList.remove('text-secondary'); }
+            });
+            render();
+            window.scrollTo(0, 0);
+        }
+
+        function handleCategory(c) { state.category = c; render(); }
+        function toggleBadge(b) {
+            state.badges = state.badges.includes(b) ? state.badges.filter(x => x !== b) : [...state.badges, b];
+            render();
+        }
+        function handleSearch(v) {
+            state.search = v;
+            if (state.page !== 'shop') navigateTo('shop');
+            render();
+        }
+
+        function viewDetail(id) {
+            const p = PRODUCTS.find(x => x.id === id);
+            document.getElementById('detail-title').innerText = p.name;
+            document.getElementById('detail-price').innerText = p.price.toFixed(2) + ' €';
+            document.getElementById('detail-description').innerText = p.description;
+            document.getElementById('detail-image').src = p.image;
+            document.getElementById('detail-badges').innerHTML = p.badges.map(b => `<span class="bg-primary/10 text-primary px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest">${b}</span>`).join('');
+            navigateTo('detail');
+        }
+
+        render();
+    </script>
+</body>
+
+</html>
