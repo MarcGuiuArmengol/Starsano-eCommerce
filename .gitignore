@@ -11,6 +11,8 @@ bin/
 obj/
 
 # Environment files (Sensitive)
+ChatBot/.env
+SEOArticleWriter/.env
 .env
 .env.example
 .env.local

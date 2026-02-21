@@ -1,7 +1,58 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
+
+interface Message {
+    role: 'user' | 'assistant';
+    content: string;
+}
 
 const ChatWidget: React.FC = () => {
     const [isOpen, setIsOpen] = useState(false);
+    const [messages, setMessages] = useState<Message[]>([]);
+    const [inputText, setInputText] = useState('');
+    const [isLoading, setIsLoading] = useState(false);
+    const messagesEndRef = useRef<HTMLDivElement>(null);
+    const sessionId = useRef(Math.random().toString(36).substring(7));
+
+    const scrollToBottom = () => {
+        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    };
+
+    useEffect(() => {
+        scrollToBottom();
+    }, [messages]);
+
+    const handleSend = async () => {
+        if (!inputText.trim() || isLoading) return;
+
+        const userMessage = inputText.trim();
+        setInputText('');
+        setMessages(prev => [...prev, { role: 'user', content: userMessage }]);
+        setIsLoading(true);
+
+        try {
+            const response = await fetch('http://localhost:8000/chat', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    message: userMessage,
+                    session_id: sessionId.current
+                }),
+            });
+
+            if (!response.ok) throw new Error('Failed to fetch response');
+
+            const data = await response.json();
+            setMessages(prev => [...prev, { role: 'assistant', content: data.response }]);
+        } catch (error) {
+            console.error('Chat error:', error);
+            setMessages(prev => [...prev, {
+                role: 'assistant',
+                content: 'Lo siento, hubo un error de conexión. Por favor, intenta de nuevo.'
+            }]);
+        } finally {
+            setIsLoading(false);
+        }
+    };
 
     return (
         <div className="fixed bottom-4 right-4 z-[100] flex flex-col items-end">
@@ -38,27 +89,57 @@ const ChatWidget: React.FC = () => {
                             </div>
                         </div>
 
-                        {/* Placeholder for user messages */}
-                        <div className="text-center py-10 opacity-20 flex flex-col items-center justify-center">
-                            <span className="material-symbols-outlined text-4xl mb-2">chat_bubble</span>
-                            <p className="text-xs italic">Próximamente estaremos chateando...</p>
-                        </div>
+                        {messages.map((msg, i) => (
+                            <div key={i} className={`flex items-start gap-2 max-w-[85%] ${msg.role === 'user' ? 'ml-auto flex-row-reverse' : ''}`}>
+                                {msg.role === 'assistant' && (
+                                    <div className="w-8 h-8 rounded-full bg-brand-soft flex items-center justify-center shrink-0">
+                                        <span className="material-symbols-outlined text-white text-sm">smart_toy</span>
+                                    </div>
+                                )}
+                                <div className={`p-3 rounded-2xl text-sm shadow-sm ${msg.role === 'user'
+                                        ? 'bg-primary text-white rounded-tr-none'
+                                        : 'bg-white border border-border text-foreground rounded-tl-none'
+                                    }`}>
+                                    {msg.content}
+                                </div>
+                            </div>
+                        ))}
+
+                        {isLoading && (
+                            <div className="flex items-start gap-2">
+                                <div className="w-8 h-8 rounded-full bg-brand-soft flex items-center justify-center shrink-0">
+                                    <span className="material-symbols-outlined text-white text-sm animate-pulse">more_horiz</span>
+                                </div>
+                                <div className="bg-white p-3 rounded-2xl rounded-tl-none border border-border text-sm text-foreground shadow-sm italic text-xs">
+                                    Escribiendo...
+                                </div>
+                            </div>
+                        )}
+                        <div ref={messagesEndRef} />
                     </div>
 
                     {/* Input Area */}
-                    <div className="p-4 border-t border-border bg-white shrink-0">
+                    <form
+                        onSubmit={(e) => { e.preventDefault(); handleSend(); }}
+                        className="p-4 border-t border-border bg-white shrink-0"
+                    >
                         <div className="relative group">
                             <input
                                 type="text"
+                                value={inputText}
+                                onChange={(e) => setInputText(e.target.value)}
                                 placeholder="Escribe tu mensaje..."
-                                disabled
-                                className="w-full bg-background-alt border border-border py-3 pl-4 pr-12 rounded-full text-sm focus:outline-none focus:ring-1 focus:ring-primary cursor-not-allowed"
+                                className="w-full bg-background-alt border border-border py-3 pl-4 pr-12 rounded-full text-sm focus:outline-none focus:ring-1 focus:ring-primary"
                             />
-                            <button disabled className="absolute right-2 top-1/2 -translate-y-1/2 p-2 text-primary opacity-50">
+                            <button
+                                type="submit"
+                                disabled={!inputText.trim() || isLoading}
+                                className="absolute right-2 top-1/2 -translate-y-1/2 p-2 text-primary disabled:opacity-30 transition-opacity"
+                            >
                                 <span className="material-symbols-outlined">send</span>
                             </button>
                         </div>
-                    </div>
+                    </form>
                 </div>
             )}
 
@@ -80,3 +161,4 @@ const ChatWidget: React.FC = () => {
 };
 
 export default ChatWidget;
+

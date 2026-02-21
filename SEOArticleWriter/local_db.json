@@ -1,0 +1,18 @@
+{
+  "entries": [
+    {
+      "product_id": "prod_1",
+      "title": "Product 2",
+      "article_id": "article_Product_2_-_SEO_Article",
+      "status": "created",
+      "ts": "2026-01-29T14:03:59.292282"
+    },
+    {
+      "product_id": "prod_1",
+      "title": "Product 4",
+      "article_id": "article_Product_4_-_SEO_Article",
+      "status": "created",
+      "ts": "2026-01-29T14:06:33.634078"
+    }
+  ]
+}
