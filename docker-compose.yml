@@ -63,5 +63,20 @@ services:
     depends_on:
       - db
 
+  seo-writer:
+    build: ./SEOArticleWriter
+    command: tail -f /dev/null
+    env_file:
+      - ./SEOArticleWriter/.env
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_HOST: db
+      POSTGRES_DB: ${POSTGRES_DB:-starsano}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+    volumes:
+      - ./SEOArticleWriter/app:/app/app
+    depends_on:
+      - db
+
 volumes:
   db_data:

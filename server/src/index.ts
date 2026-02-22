@@ -78,6 +78,32 @@ app.get('/api/products/:id', async (req: Request, res: Response) => {
     }
 });
 
+// GET /api/articles
+app.get('/api/articles', async (req: Request, res: Response) => {
+    try {
+        const result = await pool.query('SELECT * FROM articles ORDER BY created_at DESC');
+        res.json(result.rows);
+    } catch (err: any) {
+        console.error(err);
+        res.status(500).json({ message: 'Error fetching articles' });
+    }
+});
+
+// GET /api/articles/:id
+app.get('/api/articles/:id', async (req: Request, res: Response) => {
+    try {
+        const { id } = req.params;
+        const result = await pool.query('SELECT * FROM articles WHERE id = $1', [id]);
+        if (result.rows.length === 0) {
+            return res.status(404).json({ message: 'Article not found' });
+        }
+        res.json(result.rows[0]);
+    } catch (err: any) {
+        console.error(err);
+        res.status(500).json({ message: 'Error fetching article' });
+    }
+});
+
 // POST /api/products/batch
 app.post('/api/products/batch', async (req: Request, res: Response) => {
     const client = await pool.connect();
@@ -223,7 +249,64 @@ async function autoImportProducts() {
     }
 }
 
+async function autoMigrationArticles() {
+    const client = await pool.connect();
+    try {
+        // Ensure table exists
+        await client.query(`
+            CREATE TABLE IF NOT EXISTS articles (
+                id SERIAL PRIMARY KEY,
+                title TEXT NOT NULL,
+                content TEXT NOT NULL,
+                image_url TEXT,
+                author TEXT DEFAULT 'Starsano',
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        `);
+
+        const check = await client.query('SELECT COUNT(*) FROM articles');
+        if (parseInt(check.rows[0].count) > 0) return;
+
+        console.log('Migrating initial articles...');
+        const oldArticles = [
+            {
+                title: "Stevia Liquida: Tu Mejor Aliado para un Estilo de Vida Keto",
+                content: "<p>La stevia líquida de Starsano es el acompañamiento perfecto para quienes buscan reducir el consumo de azúcar sin sacrificar el sabor. Al ser de origen natural, no provoca picos de glucosa, lo que la hace ideal para diabéticos y seguidores de la dieta keto.</p>",
+                image_url: "https://lh3.googleusercontent.com/aida-public/AB6AXuC56lFh9q9EJjnaYUtvXarSOWMM-BRMAryqudEVPVxWih1y2Q9uBEz1lpCXSpmbDKoFaFLIF1_MqEl4AL2fiqxbRSDbK96jCxaqsPJWwKNogGyvOieENbmnFwy84WSyBInwOpnNHtnzoVE95V_A541cpge4-3J04LQjGfRsz2XjeYy-cRg6crWseaAtf_XdPPhGQaSNvO--7y0aMIPmrqS-E2V2AkHBEjS8R0W7Ywgxhd09QCDr5U5mDI9aJkYmwbrM6zb1wp3hiug"
+            },
+            {
+                title: "Harina de Almendras: Secretos para Repostería Saludable",
+                content: "<p>Cocinar con harina de almendras abre un mundo de posibilidades para quienes evitan el gluten o buscan harinas bajas en carbohidratos.</p>",
+                image_url: "https://lh3.googleusercontent.com/aida-public/AB6AXuBbDY3Vm2itOVLLs4spQE4oVqPmdaeBsm7Mo_t6K-MXyYQK9JbRHcLXn4en_8queSFSHi-CPYnnlM_iKZsLxdqmkFODwD4p_FspFmksS7lIbcDxbQAwcv3mMFQCcvROu9JtfRREGhsVWbSGC166G_xzVV6InwzudOUpHTIrfxvma6x4uMEVkRZz7nhAadh4OX7NCkujTd32je0i4tkNMxJGPoU4q4jkTAtUM_0wtF1s2txa_I3rp92QJCoNmOgpCI2_XQv5bWWXh80"
+            },
+            {
+                title: "Guía de Endulzantes Naturales: Más Allá del Azúcar",
+                content: "<p>Elegir el endulzante adecuado puede ser confuso. El Fruto del Monje (Monk Fruit) es excelente por su potencia y falta de calorías.</p>",
+                image_url: "https://lh3.googleusercontent.com/aida-public/AB6AXuDaOwOw_rTkUkKYOFtAxGRth7K4CJo9JOGDwxCRBHGArH9Jmnwnq5nednE-EimlynoDB48lK1V5_ZlBaG4vbA9oFUSWfhPwEQ-qbve7rtiGf9muMgmkb2oz9_E_2u6kkPDkL2zuNiWrQoDSnpPtafsDe3RABhUJEotQwWF1nFeNosnkGpNEhRZLaJDGRYmmq7S7FbnFdGd-3G4caszPs3gEvCTFrslhKqV11ZEgf-XU7fll15QllK0zZLR9Dn0Vm9_N-3qWk8oACLM"
+            },
+            {
+                title: "Vivir Sin Gluten: Consejos para una Transición Exitosa",
+                content: "<p>Empezar una dieta libre de gluten no tiene por qué ser abrumador. El secreto está en enfocarse en los alimentos naturalmente libres de esta proteína.</p>",
+                image_url: "https://lh3.googleusercontent.com/aida-public/AB6AXuC-MQKf1Xtg4Q4wiuljZ7Q2udgX5iUPv2WKEpYhCbQcVYpKR4a2J1LWLaaY0CLHZekMy8rNmSauYJgxMn8_Nx4Tg8EkDL7bKctacoLTJXKlxSKIXO--YpftS_j5XDQ5JCTPUStCfw3p9sFZg19CByA1eRl0RNep8Vek4wuUQAr0k29SorxMPvnnI6OhUrrDsCcV642ngL6HM8gyox2Kqbfo4oZ79nWQihXqmOGUftlaoaIz8AVFmJutxpj-H38Ewpx-r6sIr8WFVfk"
+            }
+        ];
+
+        for (const art of oldArticles) {
+            await client.query(
+                "INSERT INTO articles (title, content, image_url) VALUES ($1, $2, $3)",
+                [art.title, art.content, art.image_url]
+            );
+        }
+        console.log('✅ Articles migrated successfully.');
+    } catch (err: any) {
+        console.error('❌ Error migrating articles:', err.message);
+    } finally {
+        client.release();
+    }
+}
+
 app.listen(port, () => {
     console.log(`Server running on port ${port}`);
     autoImportProducts().catch(err => console.error('Unhandled auto-import error:', err));
+    autoMigrationArticles().catch(err => console.error('Unhandled migration error:', err));
 });

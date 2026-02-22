@@ -10,4 +10,10 @@ if __name__ == '__main__':
         print('Warning: missing required env keys (fill .env):', res['missing'])
     else:
         print('All required env keys present for OpenAI.')
-    run_once()
+    
+    print("--- Starting SEO Article Generation ---")
+    try:
+        run_once()
+        print("--- Run Finished Successfully ---")
+    except Exception as e:
+        print(f"--- Run Failed with Error: {e} ---")

@@ -29,29 +29,4 @@ export const CATEGORIES: Category[] = [
 
 export const PRODUCTS: Product[] = [];
 
-export const BLOG_POSTS: BlogPost[] = [
-  {
-    id: "b1",
-    title: "5 Beneficios de la Stevia natural",
-    excerpt: "Descubre por qué cambiar el azúcar refinado por Stevia puede transformar tu salud metabólica...",
-    image: "https://lh3.googleusercontent.com/aida-public/AB6AXuC56lFh9q9EJjnaYUtvXarSOWMM-BRMAryqudEVPVxWih1y2Q9uBEz1lpCXSpmbDKoFaFLIF1_MqEl4AL2fiqxbRSDbK96jCxaqsPJWwKNogGyvOieENbmnFwy84WSyBInwOpnNHtnzoVE95V_A541cpge4-3J04LQjGfRsz2XjeYy-cRg6crWseaAtf_XdPPhGQaSNvO--7y0aMIPmrqS-E2V2AkHBEjS8R0W7Ywgxhd09QCDr5U5mDI9aJkYmwbrM6zb1wp3hiug",
-    category: "Nutrición",
-    slug: "beneficios-stevia"
-  },
-  {
-    id: "b2",
-    title: "Recetas rápidas con Harina de Almendras",
-    excerpt: "¿Poco tiempo? Te enseñamos 3 postres saludables que puedes hacer en menos de 20 minutos...",
-    image: "https://lh3.googleusercontent.com/aida-public/AB6AXuBbDY3Vm2itOVLLs4spQE4oVqPmdaeBsm7Mo_t6K-MXyYQK9JbRHcLXn4en_8queSFSHi-CPYnnlM_iKZsLxdqmkFODwD4p_FspFmksS7lIbcDxbQAwcv3mMFQCcvROu9JtfRREGhsVWbSGC166G_xzVV6InwzudOUpHTIrfxvma6x4uMEVkRZz7nhAadh4OX7NCkujTd32je0i4tkNMxJGPoU4q4jkTAtUM_0wtF1s2txa_I3rp92QJCoNmOgpCI2_XQv5bWWXh80",
-    category: "Recetas",
-    slug: "recetas-almendras"
-  },
-  {
-    id: "b3",
-    title: "¿Por qué elegir productos Orgánicos?",
-    excerpt: "Entender las etiquetas es fundamental para una compra consciente. Te explicamos todo sobre lo bio...",
-    image: "https://lh3.googleusercontent.com/aida-public/AB6AXuDaOeOw_rTkUkKYOFtAxGRth7K4CJo9JOGDwxCRBHGArH9Jmnwnq5nednE-EimlynoDB48lK1V5_ZlBaG4vbA9oFUSWfhPwEQ-qbve7rtiGf9muMgmkb2oz9_E_2u6kkPDkL2zuNiWrQoDSnpPtafsDe3RABhUJEotQwWF1nFeNosnkGpNEhRZLaJDGRYmmq7S7FbnFdGd-3G4caszPs3gEvCTFrslhKqV11ZEgf-XU7fll15QllK0zZLR9Dn0Vm9_N-3qWk8oACLM",
-    category: "Estilo de Vida",
-    slug: "elegir-organico"
-  }
-];
+export const BLOG_POSTS: BlogPost[] = [];
