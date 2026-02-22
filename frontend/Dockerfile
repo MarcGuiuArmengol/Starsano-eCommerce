@@ -1,14 +1,22 @@
-FROM node:20-alpine as build
+FROM node:20-alpine as base
 
 WORKDIR /app
-
 COPY package*.json ./
 RUN npm install
 
+# Development stage
+FROM base as development
+COPY . .
+EXPOSE 3000
+CMD ["npm", "run", "dev"]
+
+# Build stage
+FROM base as build
 COPY . .
 RUN npm run build
 
-FROM nginx:alpine
+# Production stage
+FROM nginx:alpine as production
 COPY --from=build /app/dist /usr/share/nginx/html
 COPY nginx.conf /etc/nginx/conf.d/default.conf
 EXPOSE 80

@@ -69,7 +69,7 @@ const CartDrawer: React.FC = () => {
                                     <h3>
                                       <a href="#">{item.name}</a>
                                     </h3>
-                                    <p className="ml-4">{(item.price * item.quantity).toFixed(2)} €</p>
+                                    <p className="ml-4">{(item.price * item.quantity).toFixed(2)} MXN</p>
                                   </div>
                                   <p className="mt-1 text-sm text-slate-500">{item.category}</p>
                                 </div>
@@ -114,7 +114,7 @@ const CartDrawer: React.FC = () => {
                   <div className="border-t border-slate-200 dark:border-slate-800 px-4 py-6 sm:px-6">
                     <div className="flex justify-between text-base font-bold text-slate-900 dark:text-white">
                       <p>Subtotal</p>
-                      <p>{cartTotal.toFixed(2)} €</p>
+                      <p>{cartTotal.toFixed(2)} MXN</p>
                     </div>
                     <p className="mt-0.5 text-sm text-slate-500">Envío e impuestos calculados en el checkout.</p>
                     <div className="mt-6">

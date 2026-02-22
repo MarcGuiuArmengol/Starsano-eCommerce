@@ -11,13 +11,15 @@ const Shop: React.FC = () => {
     const [searchQuery, setSearchQuery] = useState('');
 
     React.useEffect(() => {
+        console.log("Fetching products from /api/products...");
+        setLoading(true);
         fetch('/api/products')
-            .then(res => res.json())
+            .then(res => {
+                if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
+                return res.json();
+            })
             .then(data => {
-                // Ensure ID is string to match frontend types if needed, or update types. 
-                // For now, let's cast or keep as is if loose. 
-                // Logic: DB id is number, Frontend type says string. 
-                // Best to map it.
+                console.log(`Fetched ${data.length} products`);
                 const mappedProducts = data.map((p: any) => ({
                     ...p,
                     id: String(p.id)
@@ -26,7 +28,7 @@ const Shop: React.FC = () => {
                 setLoading(false);
             })
             .catch(err => {
-                console.error("Failed to fetch products", err);
+                console.error("Failed to fetch products:", err.message);
                 setLoading(false);
             });
     }, []);

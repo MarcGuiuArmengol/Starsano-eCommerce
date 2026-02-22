@@ -117,8 +117,8 @@ PRODUCT_SEARCH_PROMPT = """You are the Starsano AI Product Expert. Your goal is 
 ### Rules:
 - Answer in friendly Spanish (tuteando).
 - Use ONLY the product information provided.
-- For each product, you MUST provide a direct link using the ID: http://localhost:8080/product/[ID]
-- Mention price and a brief benefit.
+- For each product, you MUST provide a direct clickable link using markdown: [Ver producto](http://localhost:8080/#/product/[ID])
+- Mention price (in MXN, use '$') and a brief benefit.
 - If no products are found, apologize and offer to help with something else.
 - Keep it concise (max 2-3 products).
 
@@ -129,6 +129,30 @@ User message: {user_message}
 Context: {context}
 
 Response:"""
+
+KEYWORDS_PROMPT = """Extrae el nombre del producto o ingredientes clave del siguiente mensaje de un usuario para buscarlo en una base de datos.
+Responde SOLO con los términos de búsqueda, sin nada más. No incluyas puntuación ni artículos innecesarios.
+Ejemplos:
+'¿Tienes mantequilla de almendras?' -> mantequilla almendras
+'Busco vitaminas para el pelo' -> vitaminas pelo
+'Precio de la proteina vegana' -> proteina vegana
+
+Mensaje: {message}
+Keywords:"""
+
+keywords_prompt_template = PromptTemplate(
+    input_variables=["message"],
+    template=KEYWORDS_PROMPT
+)
+
+def extract_search_keywords(message: str) -> str:
+    try:
+        prompt = keywords_prompt_template.format(message=message)
+        response = llm.invoke(prompt)
+        return response.content.strip()
+    except Exception as e:
+        print(f"Error extrayendo keywords: {e}")
+        return message
 
 def classify_intention(message: str, context: str = "") -> Literal["product_search", "general_question", "need_human"]:
     try:
@@ -142,6 +166,11 @@ def classify_intention(message: str, context: str = "") -> Literal["product_sear
     except Exception as e:
         print(f"Error en clasificación: {e}")
         return "general_question"
+    except Exception as e:
+        print(f"Error en clasificación: {e}")
+        return "general_question"
+
+from .vector_store import vector_store
 
 def generate_product_search_response(user_message: str, products_data: List[Dict[str, Any]], context: str = "") -> str:
     try:
@@ -150,7 +179,7 @@ def generate_product_search_response(user_message: str, products_data: List[Dict
         
         products_str = ""
         for p in products_data:
-            products_str += f"- {p['name']} ({p['price']} €): {p['description'][:60]}... URL: http://localhost:8080/product/{p['id']}\n"
+            products_str += f"- {p['name']} (${p['price']} MXN): {p['description'][:60]}... URL: http://localhost:8080/#/product/{p['id']}\n"
         
         prompt = PRODUCT_SEARCH_PROMPT.format(
             found_products=products_str,
@@ -180,9 +209,17 @@ def generate_need_human_response(user_message: str, previous_messages: str = "")
         return "Lamento lo ocurrido. Un asesor te contactará pronto al +52 56 3082 0401."
 
 def handle_product_search(message: str, user_id: str, thread_id: str, slots: Dict[str, Any]) -> dict:
-    # 1. Buscar en la base de datos real
-    products = db_client.search_products(message)
-    # 2. Generar respuesta con IA usando los datos de la DB
+    # 1. Búsqueda semántica (RAG)
+    print(f"[SEARCH] Iniciando búsqueda semántica para: {message}")
+    products = vector_store.semantic_search(message)
+    
+    # 2. Si no hay resultados semánticos, fallback a keywords
+    if not products:
+        keywords = extract_search_keywords(message)
+        print(f"[SEARCH-FALLBACK] Keywords: {keywords}")
+        products = db_client.search_products(keywords)
+    
+    # 3. Generar respuesta
     response_text = generate_product_search_response(message, products)
     return {"status": "handled", "intention": "product_search", "response_text": response_text}
 

@@ -23,20 +23,31 @@ class StoreDB:
 
     def search_products(self, query: str, limit: int = 5) -> List[Dict[str, Any]]:
         """
-        Realiza una búsqueda básica por nombre o descripción.
+        Realiza una búsqueda mejorada dividiendo por palabras clave.
         """
         conn = self._get_connection()
         try:
             with conn.cursor() as cur:
-                # Búsqueda simple por similitud de texto
-                sql = """
+                keywords = query.split()
+                if not keywords:
+                    return []
+                
+                # Construimos condiciones para que cada palabra clave aparezca en nombre o descripción
+                conditions = []
+                params = []
+                for kw in keywords:
+                    conditions.append("(name ILIKE %s OR description ILIKE %s)")
+                    params.extend([f"%{kw}%", f"%{kw}%"])
+                
+                sql = f"""
                     SELECT id, name, price, description, category, badges 
                     FROM products 
-                    WHERE name ILIKE %s OR description ILIKE %s 
+                    WHERE {' AND '.join(conditions)}
                     LIMIT %s
                 """
-                search_term = f"%{query}%"
-                cur.execute(sql, (search_term, search_term, limit))
+                params.append(limit)
+                
+                cur.execute(sql, tuple(params))
                 return cur.fetchall()
         finally:
             conn.close()
@@ -47,6 +58,15 @@ class StoreDB:
             with conn.cursor() as cur:
                 cur.execute("SELECT DISTINCT category FROM products")
                 return [row['category'] for row in cur.fetchall()]
+        finally:
+            conn.close()
+
+    def get_all_products_for_indexing(self) -> List[Dict[str, Any]]:
+        conn = self._get_connection()
+        try:
+            with conn.cursor() as cur:
+                cur.execute("SELECT id, name, price, description, category, badges FROM products")
+                return cur.fetchall()
         finally:
             conn.close()
 

@@ -3,6 +3,15 @@ import { useParams, Link } from 'react-router-dom';
 import { useCart } from '../context/CartContext';
 import Badge from '../components/Badge';
 
+// Import icons
+import organicoIcon from '../icons/organico.png';
+import sinAzucarIcon from '../icons/sin-azucar.png';
+import sinGlutenIcon from '../icons/sin-gluten.png';
+import ketoIcon from '../icons/keto.png';
+import veganoIcon from '../icons/vegano.png';
+import naturalIcon from '../icons/natural.png';
+import integralIcon from '../icons/integral.png';
+
 const ProductDetail: React.FC = () => {
     const { id } = useParams<{ id: string }>();
     const [product, setProduct] = useState<any>(null); // Use existing Product type if possible but 'any' for speed with badges array from DB
@@ -10,6 +19,16 @@ const ProductDetail: React.FC = () => {
     const { addToCart } = useCart();
     const [quantity, setQuantity] = useState(1);
     const [activeTab, setActiveTab] = useState('description');
+
+    const attributeIcons: Record<string, string> = {
+        'Organic': organicoIcon,
+        'Sugar Free': sinAzucarIcon,
+        'Gluten Free': sinGlutenIcon,
+        'Keto': ketoIcon,
+        'Vegan': veganoIcon,
+        'Natural': naturalIcon,
+        'Integral': integralIcon
+    };
 
     React.useEffect(() => {
         if (!id) return;
@@ -81,6 +100,32 @@ const ProductDetail: React.FC = () => {
 
                         <h1 className="text-4xl md:text-5xl text-foreground mb-4 leading-tight">{product.name}</h1>
 
+                        {/* Attribute Icons */}
+                        <div className="flex flex-wrap gap-6 mb-10">
+                            {/* Always show Natural icon for testing */}
+                            <div className="flex flex-col items-center gap-1.5 group">
+                                <div className="w-16 h-16 rounded-full bg-white shadow-md flex items-center justify-center p-3 hover:shadow-lg transition-all border-2 border-primary/5 group-hover:border-primary/20">
+                                    <img src={attributeIcons['Natural']} alt="Natural" className="w-full h-full object-contain" />
+                                </div>
+                                <span className="text-[10px] font-black uppercase tracking-widest text-secondary transition-colors group-hover:text-primary">
+                                    Natural
+                                </span>
+                            </div>
+
+                            {product.badges?.filter((b: string) => b !== 'Natural').map((badge: string) => (
+                                attributeIcons[badge] && (
+                                    <div key={badge} className="flex flex-col items-center gap-1.5 group">
+                                        <div className="w-16 h-16 rounded-full bg-white shadow-md flex items-center justify-center p-3 hover:shadow-lg transition-all border-2 border-primary/5 group-hover:border-primary/20">
+                                            <img src={attributeIcons[badge]} alt={badge} className="w-full h-full object-contain" />
+                                        </div>
+                                        <span className="text-[10px] font-black uppercase tracking-widest text-secondary transition-colors group-hover:text-primary">
+                                            {badge}
+                                        </span>
+                                    </div>
+                                )
+                            ))}
+                        </div>
+
                         <div className="flex items-center gap-4 mb-8">
                             <div className="flex items-center text-accent">
                                 <span className="material-symbols-outlined filled text-lg">star</span>
@@ -95,7 +140,7 @@ const ProductDetail: React.FC = () => {
                         </div>
 
                         <div className="text-3xl font-light text-foreground mb-8">
-                            {product.price.toFixed(2)} €
+                            ${product.price ? product.price.toFixed(2) : '0.00'} MXN
                         </div>
 
                         <p className="text-secondary leading-relaxed mb-10 font-light text-lg">
@@ -128,62 +173,64 @@ const ProductDetail: React.FC = () => {
                                     Añadir al carrito
                                 </button>
                             </div>
-                            <div className="mt-4 flex items-center gap-2 text-xs text-secondary justify-center sm:justify-start">
-                                <span className="material-symbols-outlined text-sm text-green-600">check_circle</span>
-                                <span>Disponible en stock</span>
-                                <span className="mx-2 text-background-contrast">|</span>
-                                <span className="material-symbols-outlined text-sm">local_shipping</span>
-                                <span>Envío en 24/48h</span>
-                            </div>
                         </div>
 
-                        {/* Tabs */}
-                        <div>
-                            <div className="flex gap-8 border-b border-background-contrast/20 mb-8">
-                                {['description', 'ingredients', 'shipping'].map(tab => (
-                                    <button
-                                        key={tab}
-                                        onClick={() => setActiveTab(tab)}
-                                        className={`pb-4 text-xs font-bold uppercase tracking-widest border-b-2 transition-colors ${activeTab === tab ? 'border-primary text-primary' : 'border-transparent text-secondary hover:text-foreground'}`}
-                                    >
-                                        {tab === 'description' ? 'Descripción' : tab === 'ingredients' ? 'Ingredientes' : 'Envíos'}
-                                    </button>
-                                ))}
-                            </div>
-                            <div className="text-secondary font-light leading-relaxed animate-fadeIn">
-                                {activeTab === 'description' && (
-                                    <div className="space-y-4">
-                                        <p>Este producto ha sido seleccionado cuidadosamente por nuestros expertos en nutrición. Garantizamos su origen natural y procesos sostenibles que respetan tanto tu cuerpo como el medio ambiente.</p>
-                                        <p>Perfecto para complementar tu dieta diaria con nutrientes de alta calidad, sin aditivos innecesarios ni procesados agresivos.</p>
-                                    </div>
-                                )}
-                                {activeTab === 'ingredients' && (
-                                    <div className="bg-white p-6 border border-background-contrast/10">
-                                        <h4 className="font-heading font-bold text-sm uppercase mb-4">Lista completa</h4>
-                                        <ul className="list-disc pl-5 space-y-2 text-sm">
-                                            <li>100% {product.name.split(' ')[0]} orgánico de cultivo controlado.</li>
-                                            <li>Sin conservantes artificiales ni colorantes.</li>
-                                            <li>Libre de GMO (Organismos Genéticamente Modificados).</li>
-                                            <li>Envasado en atmósfera protectora para garantizar frescura.</li>
-                                        </ul>
-                                    </div>
-                                )}
-                                {activeTab === 'shipping' && (
-                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                        <div className="border border-background-contrast/20 p-4">
-                                            <span className="material-symbols-outlined text-2xl mb-2 text-primary">local_shipping</span>
-                                            <p className="font-bold text-sm mb-1">Envío Estándar</p>
-                                            <p className="text-xs">2-3 días laborables (3.95€)</p>
+                        {/* Reviews Section */}
+                        <div className="mt-16 border-t border-background-contrast/10 pt-10">
+                            <h3 className="text-2xl font-heading font-bold text-foreground mb-8 uppercase tracking-wider">Valoración y Reseñas</h3>
+                            <div className="space-y-8">
+                                <div className="bg-white p-6 border border-background-contrast/10 shadow-sm">
+                                    <div className="flex justify-between items-start mb-4">
+                                        <div>
+                                            <p className="font-bold text-foreground">María García</p>
+                                            <div className="flex text-accent mt-1">
+                                                {[1, 2, 3, 4, 5].map(i => <span key={i} className="material-symbols-outlined text-sm filled">star</span>)}
+                                            </div>
                                         </div>
-                                        <div className="border border-background-contrast/20 p-4">
-                                            <span className="material-symbols-outlined text-2xl mb-2 text-primary">rocket_launch</span>
-                                            <p className="font-bold text-sm mb-1">Envío Express</p>
-                                            <p className="text-xs">24h laborables (5.95€)</p>
-                                        </div>
+                                        <span className="text-xs text-secondary">Hace 2 días</span>
                                     </div>
-                                )}
+                                    <p className="text-secondary text-sm italic">"Excelente calidad, se nota que es un producto 100% natural. El sabor es auténtico y el envío fue muy rápido. Volveré a comprar sin duda."</p>
+                                </div>
+                                <div className="bg-white p-6 border border-background-contrast/10 shadow-sm">
+                                    <div className="flex justify-between items-start mb-4">
+                                        <div>
+                                            <p className="font-bold text-foreground">Juan Pérez</p>
+                                            <div className="flex text-accent mt-1">
+                                                {[1, 2, 3, 4].map(i => <span key={i} className="material-symbols-outlined text-sm filled">star</span>)}
+                                                <span className="material-symbols-outlined text-sm">star</span>
+                                            </div>
+                                        </div>
+                                        <span className="text-xs text-secondary">Hace 1 semana</span>
+                                    </div>
+                                    <p className="text-secondary text-sm italic">"Muy buen producto, cumple con todo lo que promete. El empaque llegó en perfectas condiciones."</p>
+                                </div>
                             </div>
+                            <button className="mt-8 text-xs font-bold uppercase tracking-widest text-primary border-b border-primary pb-1 hover:text-accent hover:border-accent transition-colors">
+                                Dejar una reseña
+                            </button>
                         </div>
+                    </div>
+                </div>
+
+                {/* Recommended Products */}
+                <div className="mt-24">
+                    <h3 className="text-2xl font-heading font-bold text-foreground mb-10 uppercase tracking-wider border-l-4 border-primary pl-4">También te podría gustar</h3>
+                    <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
+                        {/* Static sample products for recommendation */}
+                        {[1, 2, 3, 4].map((i) => (
+                            <div key={i} className="group cursor-pointer">
+                                <div className="aspect-[3/4] bg-white overflow-hidden mb-4 relative">
+                                    <img src={product.image} alt="Recommended" className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" />
+                                    <div className="absolute top-2 right-2">
+                                        <div className="w-6 h-6 rounded-full bg-white/90 shadow-sm flex items-center justify-center p-1">
+                                            <img src={attributeIcons['Natural']} alt="Natural" className="w-full h-full object-contain" />
+                                        </div>
+                                    </div>
+                                </div>
+                                <h4 className="text-xs font-bold uppercase tracking-wider text-foreground group-hover:text-primary transition-colors">Producto Relacionado {i}</h4>
+                                <p className="text-xs text-secondary mt-1">$99.00 MXN</p>
+                            </div>
+                        ))}
                     </div>
                 </div>
             </div>

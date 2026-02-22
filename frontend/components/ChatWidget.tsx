@@ -54,6 +54,44 @@ const ChatWidget: React.FC = () => {
         }
     };
 
+    const renderContent = (content: string) => {
+        const linkRegex = /\[(.*?)\]\((.*?)\)/g;
+        const parts = [];
+        let lastIndex = 0;
+        let match;
+
+        while ((match = linkRegex.exec(content)) !== null) {
+            // Text before match
+            if (match.index > lastIndex) {
+                parts.push(content.substring(lastIndex, match.index));
+            }
+
+            // The link as a button
+            const [full, text, url] = match;
+            parts.push(
+                <a
+                    key={match.index}
+                    href={url}
+                    className="inline-flex items-center gap-1 bg-brand-soft text-white px-3 py-1.5 rounded-lg text-xs font-bold my-1 hover:bg-primary transition-colors shadow-sm no-underline"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                >
+                    <span className="material-symbols-outlined text-sm">open_in_new</span>
+                    {text}
+                </a>
+            );
+
+            lastIndex = match.index + full.length;
+        }
+
+        // Remaining text
+        if (lastIndex < content.length) {
+            parts.push(content.substring(lastIndex));
+        }
+
+        return parts.length > 0 ? parts : content;
+    };
+
     return (
         <div className="fixed bottom-4 right-4 z-[100] flex flex-col items-end">
             {/* Chat Window */}
@@ -97,10 +135,10 @@ const ChatWidget: React.FC = () => {
                                     </div>
                                 )}
                                 <div className={`p-3 rounded-2xl text-sm shadow-sm ${msg.role === 'user'
-                                        ? 'bg-primary text-white rounded-tr-none'
-                                        : 'bg-white border border-border text-foreground rounded-tl-none'
+                                    ? 'bg-primary text-white rounded-tr-none'
+                                    : 'bg-white border border-border text-foreground rounded-tl-none'
                                     }`}>
-                                    {msg.content}
+                                    {renderContent(msg.content)}
                                 </div>
                             </div>
                         ))}
