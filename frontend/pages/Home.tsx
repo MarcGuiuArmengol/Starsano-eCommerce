@@ -27,36 +27,86 @@ const Home: React.FC = () => {
       });
   }, []);
 
+  const [currentSlide, setCurrentSlide] = React.useState(0);
+  const slides = [
+    {
+      image: "/images/1.png",
+      title: "Tienda de alimentos orgánicos, sin gluten y sin azúcar",
+      subtitle: "CALIDAD PREMIUM",
+      description: "Descubre nuestra selección de productos naturales para una vida más saludable."
+    },
+    {
+      image: "/images/2.png",
+      title: "Tu bienestar, nuestra prioridad",
+      subtitle: "100% NATURAL",
+      description: "Ingredientes puros y procesos sostenibles desde el origen hasta tu mesa."
+    },
+    {
+      image: "/images/3.png",
+      title: "Sabor que nutre tu cuerpo",
+      subtitle: "CONSCIENCIA",
+      description: "Suplementos y superalimentos diseñados para potenciar tu energía vital."
+    }
+  ];
+
+  React.useEffect(() => {
+    const timer = setInterval(() => {
+      setCurrentSlide((prev) => (prev + 1) % slides.length);
+    }, 5000);
+    return () => clearInterval(timer);
+  }, [slides.length]);
+
   const featuredProducts = products.slice(0, 4);
 
   return (
     <>
-      {/* Editorial Hero */}
-      <section className="relative w-full h-[90vh] flex items-center justify-center overflow-hidden bg-primary/95 text-white">
-        <div className="absolute inset-0 z-0 opacity-40">
-          <img
-            src="https://images.unsplash.com/photo-1515023115689-589c33041697?q=80&w=2940&auto=format&fit=crop"
-            className="w-full h-full object-cover"
-            alt="Organic lifestyle"
-          />
+      {/* Pure Visual Hero Carousel */}
+      <section className="relative w-full h-[70vh] md:h-[85vh] overflow-hidden bg-background">
+        {slides.map((slide, index) => (
+          <div
+            key={index}
+            className={`absolute inset-0 z-0 transition-opacity duration-1000 ease-in-out ${index === currentSlide ? 'opacity-100' : 'opacity-0'
+              }`}
+          >
+            <img
+              src={slide.image}
+              className={`w-full h-full object-cover transition-transform duration-[8000ms] ${index === currentSlide ? 'scale-105' : 'scale-100'
+                }`}
+              alt={`Starsano Slide ${index + 1}`}
+            />
+          </div>
+        ))}
+
+        {/* Carousel Indicators (Minimalist) */}
+        <div className="absolute bottom-8 left-1/2 -translate-x-1/2 z-20 flex gap-2">
+          {slides.map((_, index) => (
+            <button
+              key={index}
+              onClick={() => setCurrentSlide(index)}
+              className={`h-1.5 transition-all duration-300 rounded-full ${index === currentSlide ? 'bg-primary w-8' : 'bg-white/50 w-4 hover:bg-white'
+                }`}
+              aria-label={`Go to slide ${index + 1}`}
+            />
+          ))}
         </div>
-        <div className="relative z-10 text-center px-4 max-w-4xl animate-slideUp">
-          <p className="font-heading text-xs md:text-sm uppercase tracking-[0.3em] text-accent mb-6 font-semibold">
-            Bienestar Natural
-          </p>
-          <h1 className="text-6xl md:text-8xl mb-8 leading-tight">
-            Eleva tu <span className="italic font-light">cuerpo</span> <br />
-            y tu mente.
+      </section>
+
+      {/* SEO Headline & Mission Section */}
+      <section className="py-20 md:py-32 bg-white text-center px-4 border-b border-background-contrast/10">
+        <div className="max-w-4xl mx-auto">
+          <h1 className="text-4xl md:text-6xl lg:text-7xl text-foreground mb-10 leading-tight font-heading">
+            Tienda de alimentos orgánicos, <br className="hidden md:block" />
+            <span className="text-primary italic">sin gluten y sin azúcar.</span>
           </h1>
-          <p className="text-lg md:text-xl text-white/80 font-light mb-10 max-w-2xl mx-auto leading-relaxed">
-            Una curaduría de productos orgánicos y suplementos naturales diseñados para tu mejor versión.
+          <p className="text-lg md:text-xl text-secondary font-light mb-12 max-w-2xl mx-auto leading-relaxed">
+            En Starsano, seleccionamos cada producto pensando en tu bienestar. Calidad premium, 100% natural y con consciencia en cada ingrediente.
           </p>
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-            <Link to="/shop" className="w-full sm:w-auto px-10 py-4 bg-white text-primary font-bold uppercase tracking-widest text-sm hover:bg-accent hover:text-white transition-all duration-300">
-              Comprar Ahora
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-6">
+            <Link to="/shop" className="w-full sm:w-auto px-12 py-5 bg-primary text-white font-bold uppercase tracking-widest text-sm hover:bg-accent transition-all duration-300 shadow-lg shadow-primary/20">
+              Explorar Catálogo
             </Link>
-            <Link to="/blog" className="w-full sm:w-auto px-10 py-4 border border-white text-white font-bold uppercase tracking-widest text-sm hover:bg-white hover:text-primary transition-all duration-300">
-              Leer Journal
+            <Link to="/blog" className="w-full sm:w-auto px-12 py-5 border border-primary text-primary font-bold uppercase tracking-widest text-sm hover:bg-primary hover:text-white transition-all duration-300">
+              Leer El Journal
             </Link>
           </div>
         </div>
