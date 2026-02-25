@@ -172,44 +172,69 @@ const Home: React.FC = () => {
         </div>
       </section>
 
-      {/* Featured Products - Clean & Spacious */}
+      {/* Featured Sections */}
       <section className="py-24 bg-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-16">
-            <span className="font-heading text-xs font-bold uppercase tracking-widest text-accent mb-3 block">Nuestros Favoritos</span>
-            <h2 className="text-4xl md:text-5xl text-foreground">Lo más vendido</h2>
+
+          {/* Section 1: Novedades */}
+          <div className="mb-24">
+            <div className="flex justify-between items-end mb-12">
+              <div>
+                <span className="font-heading text-xs font-bold uppercase tracking-widest text-accent mb-3 block">Recién Llegados</span>
+                <h2 className="text-4xl md:text-5xl text-foreground">Novedades</h2>
+              </div>
+              <Link to="/shop" className="hidden md:block font-heading text-xs font-bold uppercase tracking-widest border-b border-foreground pb-1 hover:text-accent hover:border-accent transition-colors">
+                Ver todas las novedades
+              </Link>
+            </div>
+
+            {loading ? (
+              <div className="flex justify-center py-20"><div className="animate-spin rounded-full h-12 w-12 border-t-2 border-primary"></div></div>
+            ) : products.length > 0 ? (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
+                {products.slice(0, 4).map(product => (
+                  <ProductCard key={product.id} product={product} />
+                ))}
+              </div>
+            ) : (
+              <p className="text-center text-secondary py-10">Cargando productos...</p>
+            )}
           </div>
 
-          {loading ? (
-            <div className="flex flex-col items-center justify-center py-20">
-              <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary mb-4"></div>
-              <p className="text-secondary">Cargando productos...</p>
+          {/* Section 2: Populares */}
+          <div className="mb-24">
+            <div className="flex justify-between items-end mb-12">
+              <div>
+                <span className="font-heading text-xs font-bold uppercase tracking-widest text-accent mb-3 block">Los Favoritos</span>
+                <h2 className="text-4xl md:text-5xl text-foreground">Más Populares</h2>
+              </div>
+              <Link to="/shop" className="hidden md:block font-heading text-xs font-bold uppercase tracking-widest border-b border-foreground pb-1 hover:text-accent hover:border-accent transition-colors">
+                Ver todos los favoritos
+              </Link>
             </div>
-          ) : error ? (
-            <div className="text-center py-20 bg-red-50/50 rounded-sm">
-              <p className="text-red-800 font-bold mb-2">Error al conectar con el servidor</p>
-              <p className="text-red-600 text-sm mb-4">{error}</p>
-              <button onClick={() => window.location.reload()} className="px-6 py-2 bg-red-600 text-white text-xs font-bold uppercase tracking-widest hover:bg-red-700 transition-colors">
-                Reintentar
-              </button>
-            </div>
-          ) : featuredProducts.length === 0 ? (
-            <div className="text-center py-20 border border-dashed border-background-contrast/20 rounded-sm">
-              <span className="material-symbols-outlined text-4xl text-secondary mb-2">inventory_2</span>
-              <p className="text-foreground font-bold">Sin productos en venta</p>
-              <p className="text-secondary text-sm">Asegúrate de que el archivo CSV tenga productos válidos.</p>
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8 gap-y-12">
-              {featuredProducts.map(product => (
-                <ProductCard key={product.id} product={product} />
-              ))}
-            </div>
-          )}
 
-          <div className="text-center mt-16">
-            <Link to="/shop" className="inline-block px-12 py-4 border border-foreground text-foreground font-bold uppercase tracking-widest text-xs hover:bg-foreground hover:text-white transition-all">
-              Ver catálogo completo
+            {loading ? (
+              <div className="flex justify-center py-20"><div className="animate-spin rounded-full h-12 w-12 border-t-2 border-primary"></div></div>
+            ) : products.length > 4 ? (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
+                {products.slice(4, 8).map(product => (
+                  <ProductCard key={product.id} product={product} />
+                ))}
+              </div>
+            ) : products.length > 0 ? (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
+                {products.slice(0, 4).map(product => (
+                  <ProductCard key={product.id} product={product} />
+                ))}
+              </div>
+            ) : (
+              <p className="text-center text-secondary py-10">Cargando productos...</p>
+            )}
+          </div>
+
+          <div className="text-center mt-8">
+            <Link to="/shop" className="inline-block px-12 py-5 bg-foreground text-white font-bold uppercase tracking-widest text-xs hover:bg-primary transition-all shadow-xl">
+              Explorar todo el catálogo
             </Link>
           </div>
         </div>
