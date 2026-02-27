@@ -2,6 +2,7 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { CATEGORIES, PRODUCTS, BLOG_POSTS } from '../constants';
 import ProductCard from '../components/ProductCard';
+import { api } from '../services/api';
 
 const Home: React.FC = () => {
   const [products, setProducts] = React.useState<any[]>([]);
@@ -9,12 +10,8 @@ const Home: React.FC = () => {
   const [error, setError] = React.useState<string | null>(null);
 
   React.useEffect(() => {
-    console.log('Fetching products from /api/products');
-    fetch('/api/products')
-      .then(res => {
-        if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
-        return res.json();
-      })
+    console.log('Fetching products from api');
+    api.getProducts()
       .then(data => {
         console.log(`Fetched ${data.length} products`);
         setProducts(data);

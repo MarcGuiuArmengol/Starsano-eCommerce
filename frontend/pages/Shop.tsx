@@ -2,6 +2,7 @@ import React, { useState, useMemo } from 'react';
 import ProductCard from '../components/ProductCard';
 import { CATEGORIES } from '../constants';
 import { Product } from '../types';
+import { api } from '../services/api';
 
 const Shop: React.FC = () => {
     const [products, setProducts] = useState<Product[]>([]);
@@ -11,13 +12,9 @@ const Shop: React.FC = () => {
     const [searchQuery, setSearchQuery] = useState('');
 
     React.useEffect(() => {
-        console.log("Fetching products from /api/products...");
+        console.log("Fetching products from api...");
         setLoading(true);
-        fetch('/api/products')
-            .then(res => {
-                if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
-                return res.json();
-            })
+        api.getProducts()
             .then(data => {
                 console.log(`Fetched ${data.length} products`);
                 const mappedProducts = data.map((p: any) => ({

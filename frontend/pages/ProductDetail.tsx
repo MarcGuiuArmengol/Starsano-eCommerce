@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useCart } from '../context/CartContext';
 import Badge from '../components/Badge';
+import { api } from '../services/api';
 
 // Import icons
 import organicoIcon from '../icons/organico.png';
@@ -32,11 +33,7 @@ const ProductDetail: React.FC = () => {
 
     React.useEffect(() => {
         if (!id) return;
-        fetch(`/api/products/${id}`)
-            .then(res => {
-                if (!res.ok) throw new Error('Product not found');
-                return res.json();
-            })
+        api.getProductById(id)
             .then(data => {
                 setProduct(data);
                 setLoading(false);

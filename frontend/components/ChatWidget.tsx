@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { api } from '../services/api';
 
 interface Message {
     role: 'user' | 'assistant';
@@ -30,18 +31,7 @@ const ChatWidget: React.FC = () => {
         setIsLoading(true);
 
         try {
-            const response = await fetch('http://localhost:8000/chat', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    message: userMessage,
-                    session_id: sessionId.current
-                }),
-            });
-
-            if (!response.ok) throw new Error('Failed to fetch response');
-
-            const data = await response.json();
+            const data = await api.chat(userMessage, sessionId.current);
             setMessages(prev => [...prev, { role: 'assistant', content: data.response }]);
         } catch (error) {
             console.error('Chat error:', error);

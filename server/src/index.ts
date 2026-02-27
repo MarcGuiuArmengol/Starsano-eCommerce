@@ -106,6 +106,14 @@ app.get('/api/articles/:id', async (req: Request, res: Response) => {
 
 // POST /api/products/batch
 app.post('/api/products/batch', async (req: Request, res: Response) => {
+    // Basic Authentication check
+    const apiKey = req.headers['x-api-key'];
+    const expectedKey = process.env.API_SECRET_KEY || 'default_insecure_key_change_me';
+
+    if (!apiKey || apiKey !== expectedKey) {
+        return res.status(401).json({ message: 'Unauthorized: Invalid or missing API key' });
+    }
+
     const client = await pool.connect();
     try {
         const products = req.body;
@@ -114,8 +122,15 @@ app.post('/api/products/batch', async (req: Request, res: Response) => {
         }
 
         await client.query('BEGIN');
+        let importedCount = 0;
         for (const product of products) {
             const { name, price, description, image, category, badges, rating } = product;
+
+            // Basic validation
+            if (!name || price === undefined) {
+                continue; // Skip invalid products
+            }
+
             await client.query(
                 `INSERT INTO products (name, price, description, image, category, badges, rating)
                  VALUES ($1, $2, $3, $4, $5, $6, $7)
@@ -126,15 +141,17 @@ app.post('/api/products/batch', async (req: Request, res: Response) => {
                     category = EXCLUDED.category,
                     badges = EXCLUDED.badges,
                     rating = EXCLUDED.rating`,
-                [name, price, description, image, category, badges || [], rating || 0]
+                [name, price, description || '', image || '', category || '', badges || [], rating || 0]
             );
+            importedCount++;
         }
         await client.query('COMMIT');
-        res.json({ message: `Successfully imported ${products.length} products` });
+        res.json({ message: `Successfully imported ${importedCount} products` });
     } catch (err: any) {
         await client.query('ROLLBACK');
-        console.error(err);
-        res.status(500).json({ message: 'Error importing products', error: err.message });
+        console.error('Batch import error:', err.message);
+        // Do not leak raw DB error messages to the client
+        res.status(500).json({ message: 'Internal server error during product import' });
     } finally {
         client.release();
     }

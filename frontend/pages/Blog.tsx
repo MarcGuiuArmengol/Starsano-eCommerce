@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
+import DOMPurify from 'dompurify';
+import { api } from '../services/api';
 
 const Blog: React.FC = () => {
     const [articles, setArticles] = useState<any[]>([]);
@@ -8,8 +10,7 @@ const Blog: React.FC = () => {
     useEffect(() => {
         const fetchArticles = async () => {
             try {
-                const response = await fetch('/api/articles');
-                const data = await response.json();
+                const data = await api.getArticles();
                 setArticles(Array.isArray(data) ? data : []);
             } catch (error) {
                 console.error('Error fetching articles:', error);
@@ -67,7 +68,7 @@ const Blog: React.FC = () => {
                                 {featuredPost.title}
                             </h2>
                             <div className="text-secondary text-lg font-light mb-8 leading-relaxed line-clamp-3"
-                                dangerouslySetInnerHTML={{ __html: featuredPost.content.substring(0, 300) + '...' }} />
+                                dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(featuredPost.content.substring(0, 300) + '...') }} />
                             <span className="inline-flex items-center gap-2 text-primary font-bold border-b border-primary pb-1 group-hover:text-accent group-hover:border-accent transition-colors">
                                 Leer historia completa <span className="material-symbols-outlined text-lg">arrow_forward</span>
                             </span>
@@ -85,7 +86,7 @@ const Blog: React.FC = () => {
                                     {post.title}
                                 </h2>
                                 <div className="text-secondary font-light mb-4 line-clamp-3 text-sm"
-                                    dangerouslySetInnerHTML={{ __html: post.content.substring(0, 150) + '...' }} />
+                                    dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(post.content.substring(0, 150) + '...') }} />
                             </div>
                         </Link>
                     ))}

@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
+import DOMPurify from 'dompurify';
+import { api } from '../services/api';
 
 const BlogPost: React.FC = () => {
     const { id } = useParams<{ id: string }>();
@@ -9,9 +11,8 @@ const BlogPost: React.FC = () => {
     useEffect(() => {
         const fetchArticle = async () => {
             try {
-                const response = await fetch(`/api/articles/${id}`);
-                if (!response.ok) throw new Error('Article not found');
-                const data = await response.json();
+                if (!id) return;
+                const data = await api.getArticleById(id);
                 setArticle(data);
             } catch (error) {
                 console.error('Error fetching article:', error);
@@ -57,7 +58,7 @@ const BlogPost: React.FC = () => {
 
                 <div
                     className="blog-post-content prose prose-lg max-w-none prose-headings:font-heading prose-headings:font-bold prose-p:text-secondary prose-p:font-light prose-a:text-primary prose-a:font-bold prose-a:underline prose-a:underline-offset-4 prose-a:decoration-primary/30 hover:prose-a:text-accent hover:prose-a:decoration-accent transition-all"
-                    dangerouslySetInnerHTML={{ __html: article.content }}
+                    dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(article.content) }}
                 />
 
                 <div className="mt-20 pt-12 border-t border-background-contrast/20">
