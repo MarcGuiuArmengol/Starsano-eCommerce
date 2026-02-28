@@ -31,5 +31,60 @@ export const api = {
         });
         if (!response.ok) throw new Error('Failed to fetch chat response');
         return response.json();
+    },
+    // AUTH
+    login: async (credentials: any) => {
+        const response = await fetch(`${API_BASE_URL}/api/auth/login`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(credentials),
+        });
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.message || 'Login failed');
+        }
+        return response.json();
+    },
+    register: async (data: any) => {
+        const response = await fetch(`${API_BASE_URL}/api/auth/register`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data),
+        });
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.message || 'Registration failed');
+        }
+        return response.json();
+    },
+    // NEWSLETTER
+    subscribeNewsletter: async (email: string) => {
+        const response = await fetch(`${API_BASE_URL}/api/newsletter/subscribe`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email }),
+        });
+        if (!response.ok) throw new Error('Subscription failed');
+        return response.json();
+    },
+    // ORDERS
+    createOrder: async (orderData: any, token: string) => {
+        const response = await fetch(`${API_BASE_URL}/api/orders`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify(orderData),
+        });
+        if (!response.ok) throw new Error('Failed to create order');
+        return response.json();
+    },
+    getOrderHistory: async (token: string) => {
+        const response = await fetch(`${API_BASE_URL}/api/orders/history`, {
+            headers: { 'Authorization': `Bearer ${token}` },
+        });
+        if (!response.ok) throw new Error('Failed to fetch history');
+        return response.json();
     }
 };

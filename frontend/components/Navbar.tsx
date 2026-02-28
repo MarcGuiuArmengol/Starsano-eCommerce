@@ -1,11 +1,14 @@
 import React, { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useCart } from '../context/CartContext';
+import { useUser } from '../context/UserContext';
 import logo from '../logo.png';
 
 const Navbar: React.FC = () => {
   const { setIsCartOpen, cartCount } = useCart();
+  const { user, logout } = useUser();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const location = useLocation();
 
   const isHome = location.pathname === '/';
@@ -23,8 +26,11 @@ const Navbar: React.FC = () => {
           <nav className="hidden lg:flex items-center gap-8">
             <Link to="/" className={`text-xs font-bold uppercase tracking-widest hover:text-accent transition-colors ${location.pathname === '/' ? 'text-primary' : 'text-secondary'}`}>Inicio</Link>
             <Link to="/shop" className={`text-xs font-bold uppercase tracking-widest hover:text-accent transition-colors ${location.pathname === '/shop' ? 'text-primary' : 'text-secondary'}`}>Tienda</Link>
-            <Link to="/blog" className={`text-xs font-bold uppercase tracking-widest hover:text-accent transition-colors ${location.pathname === '/blog' ? 'text-primary' : 'text-secondary'}`}>Journal</Link>
+            <Link to="/journal" className={`text-xs font-bold uppercase tracking-widest hover:text-accent transition-colors ${location.pathname === '/journal' ? 'text-primary' : 'text-secondary'}`}>Journal</Link>
             <Link to="/contact" className={`text-xs font-bold uppercase tracking-widest hover:text-accent transition-colors ${location.pathname === '/contact' ? 'text-primary' : 'text-secondary'}`}>Contacto</Link>
+            {user?.role === 'admin' && (
+              <Link to="/admin" className="text-xs font-bold uppercase tracking-widest text-accent hover:underline">Admin</Link>
+            )}
           </nav>
 
           {/* Search & Icons */}
@@ -38,9 +44,37 @@ const Navbar: React.FC = () => {
               <span className="material-symbols-outlined absolute right-0 top-1/2 -translate-y-1/2 text-secondary/50 text-lg group-focus-within:text-accent transition-colors">search</span>
             </div>
 
-            <button className="p-2 text-foreground hover:text-accent transition-colors">
-              <span className="material-symbols-outlined">person</span>
-            </button>
+            <div className="relative">
+              <button
+                onClick={() => user ? setIsUserMenuOpen(!isUserMenuOpen) : undefined}
+                className="p-2 text-foreground hover:text-accent transition-colors flex items-center gap-1"
+              >
+                {user ? (
+                  <>
+                    <span className="material-symbols-outlined">person</span>
+                    <span className="hidden sm:inline text-[10px] font-bold uppercase tracking-wider">{user.email.split('@')[0]}</span>
+                  </>
+                ) : (
+                  <Link to="/login" className="material-symbols-outlined">person</Link>
+                )}
+              </button>
+
+              {user && isUserMenuOpen && (
+                <div className="absolute right-0 mt-2 w-48 bg-white border border-background-contrast/10 shadow-xl rounded-lg py-2 z-[60] animate-fadeIn">
+                  <div className="px-4 py-2 border-b border-background-contrast/5">
+                    <p className="text-[10px] text-secondary font-bold uppercase tracking-tighter truncate">{user.email}</p>
+                  </div>
+                  <Link to="/profile" className="block px-4 py-2 text-xs text-secondary hover:bg-background-contrast/5 hover:text-primary">Mi Perfil</Link>
+                  <Link to="/orders" className="block px-4 py-2 text-xs text-secondary hover:bg-background-contrast/5 hover:text-primary">Mis Pedidos</Link>
+                  <button
+                    onClick={logout}
+                    className="w-full text-left px-4 py-2 text-xs text-red-500 hover:bg-red-50"
+                  >
+                    Cerrar Sesión
+                  </button>
+                </div>
+              )}
+            </div>
 
             <button
               onClick={() => setIsCartOpen(true)}

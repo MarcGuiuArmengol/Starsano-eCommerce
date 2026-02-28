@@ -45,41 +45,51 @@ const ChatWidget: React.FC = () => {
     };
 
     const renderContent = (content: string) => {
+        // First, clean up all double asterisks from the text
+        const cleanContent = content.replace(/\*\*/g, '');
+
         const linkRegex = /\[(.*?)\]\((.*?)\)/g;
         const parts = [];
         let lastIndex = 0;
         let match;
 
-        while ((match = linkRegex.exec(content)) !== null) {
+        while ((match = linkRegex.exec(cleanContent)) !== null) {
             // Text before match
             if (match.index > lastIndex) {
-                parts.push(content.substring(lastIndex, match.index));
+                parts.push(cleanContent.substring(lastIndex, match.index));
             }
 
-            // The link as a button
+            // The link as a styled block button with spacing
             const [full, text, url] = match;
             parts.push(
-                <a
-                    key={match.index}
-                    href={url}
-                    className="inline-flex items-center gap-1 bg-brand-soft text-white px-3 py-1.5 rounded-lg text-xs font-bold my-1 hover:bg-primary transition-colors shadow-sm no-underline"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                >
-                    <span className="material-symbols-outlined text-sm">open_in_new</span>
-                    {text}
-                </a>
+                <div key={match.index} className="my-3">
+                    <a
+                        href={url}
+                        className="inline-flex items-center gap-2 bg-primary text-white px-5 py-2.5 rounded-sm text-[10px] font-bold uppercase tracking-widest hover:bg-accent transition-all shadow-md no-underline"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                    >
+                        {text}
+                        <span className="material-symbols-outlined text-sm">open_in_new</span>
+                    </a>
+                </div>
             );
 
             lastIndex = match.index + full.length;
         }
 
         // Remaining text
-        if (lastIndex < content.length) {
-            parts.push(content.substring(lastIndex));
+        if (lastIndex < cleanContent.length) {
+            parts.push(cleanContent.substring(lastIndex));
         }
 
-        return parts.length > 0 ? parts : content;
+        return parts.length > 0 ? (
+            <div className="flex flex-col">
+                {parts.map((p, i) => (
+                    <span key={i} className="leading-relaxed whitespace-pre-wrap">{p}</span>
+                ))}
+            </div>
+        ) : <span className="leading-relaxed whitespace-pre-wrap">{cleanContent}</span>;
     };
 
     return (

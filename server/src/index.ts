@@ -5,6 +5,7 @@ import dotenv from 'dotenv';
 import fs from 'fs';
 import path from 'path';
 import { parse } from 'csv-parse/sync';
+import { hashPassword, comparePassword, generateToken, verifyToken } from './auth';
 
 dotenv.config();
 
@@ -21,6 +22,27 @@ const pool = new Pool({
     password: process.env.POSTGRES_PASSWORD || 'postgres',
     port: 5432,
 });
+
+// Auth Middleware
+const authenticateToken = (req: Request, res: Response, next: any) => {
+    const authHeader = req.headers['authorization'];
+    const token = authHeader && authHeader.split(' ')[1];
+
+    if (!token) return res.status(401).json({ message: 'Missing token' });
+
+    const user = verifyToken(token);
+    if (!user) return res.status(403).json({ message: 'Invalid token' });
+
+    (req as any).user = user;
+    next();
+};
+
+const isAdmin = (req: Request, res: Response, next: any) => {
+    if ((req as any).user?.role !== 'admin') {
+        return res.status(403).json({ message: 'Admin access required' });
+    }
+    next();
+};
 
 app.get('/', (req: Request, res: Response) => {
     res.send('Starsano API Running');
@@ -154,6 +176,125 @@ app.post('/api/products/batch', async (req: Request, res: Response) => {
         res.status(500).json({ message: 'Internal server error during product import' });
     } finally {
         client.release();
+    }
+});
+
+// AUTH ROUTES
+app.post('/api/auth/register', async (req: Request, res: Response) => {
+    const { email, password } = req.body;
+    if (!email || !password) return res.status(400).json({ message: 'Email and password required' });
+
+    try {
+        const hashedPassword = await hashPassword(password);
+        const result = await pool.query(
+            'INSERT INTO users (email, password_hash) VALUES ($1, $2) RETURNING id',
+            [email, hashedPassword]
+        );
+        const token = generateToken(result.rows[0].id, 'user');
+        res.status(201).json({ token, user: { email, role: 'user' } });
+    } catch (err: any) {
+        if (err.code === '23505') return res.status(400).json({ message: 'User already exists' });
+        console.error(err);
+        res.status(500).json({ message: 'Error registering user' });
+    }
+});
+
+app.post('/api/auth/login', async (req: Request, res: Response) => {
+    const { email, password } = req.body;
+    try {
+        const result = await pool.query('SELECT * FROM users WHERE email = $1', [email]);
+        if (result.rows.length === 0) return res.status(401).json({ message: 'Invalid credentials' });
+
+        const user = result.rows[0];
+        const valid = await comparePassword(password, user.password_hash);
+        if (!valid) return res.status(401).json({ message: 'Invalid credentials' });
+
+        const token = generateToken(user.id, user.role);
+        res.json({ token, user: { email: user.email, role: user.role } });
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ message: 'Login error' });
+    }
+});
+
+// NEWSLETTER
+app.post('/api/newsletter/subscribe', async (req: Request, res: Response) => {
+    const { email } = req.body;
+    if (!email) return res.status(400).json({ message: 'Email required' });
+    try {
+        await pool.query('INSERT INTO newsletter_subscribers (email) VALUES ($1) ON CONFLICT DO NOTHING', [email]);
+        res.json({ message: 'Subscribed successfully' });
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ message: 'Error subscribing' });
+    }
+});
+
+// PROFILE & ORDERS
+app.get('/api/profile', authenticateToken, async (req: Request, res: Response) => {
+    try {
+        const { userId } = (req as any).user;
+        const result = await pool.query('SELECT id, email, role, created_at FROM users WHERE id = $1', [userId]);
+        if (result.rows.length === 0) return res.status(404).json({ message: 'User not found' });
+        res.json(result.rows[0]);
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ message: 'Error fetching profile' });
+    }
+});
+
+app.post('/api/orders', authenticateToken, async (req: Request, res: Response) => {
+    const { items, total } = req.body;
+    const { userId } = (req as any).user;
+    const client = await pool.connect();
+    try {
+        await client.query('BEGIN');
+        const orderResult = await client.query(
+            'INSERT INTO orders (user_id, total, status) VALUES ($1, $2, $3) RETURNING id',
+            [userId, total, 'pending']
+        );
+        const orderId = orderResult.rows[0].id;
+        for (const item of items) {
+            await client.query(
+                'INSERT INTO order_items (order_id, product_id, quantity, price) VALUES ($1, $2, $3, $4)',
+                [orderId, item.id, item.quantity, item.price]
+            );
+        }
+        await client.query('COMMIT');
+        res.status(201).json({ orderId, message: 'Order created' });
+    } catch (err) {
+        await client.query('ROLLBACK');
+        console.error(err);
+        res.status(500).json({ message: 'Error creating order' });
+    } finally {
+        client.release();
+    }
+});
+
+app.get('/api/orders/history', authenticateToken, async (req: Request, res: Response) => {
+    try {
+        const { userId } = (req as any).user;
+        const result = await pool.query(
+            'SELECT * FROM orders WHERE user_id = $1 ORDER BY created_at DESC',
+            [userId]
+        );
+        res.json(result.rows);
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ message: 'Error fetching history' });
+    }
+});
+
+// ADMIN ROUTES (GET ALL ORDERS)
+app.get('/api/admin/orders', authenticateToken, isAdmin, async (req: Request, res: Response) => {
+    try {
+        const result = await pool.query(
+            'SELECT o.*, u.email FROM orders o JOIN users u ON o.user_id = u.id ORDER BY o.created_at DESC'
+        );
+        res.json(result.rows);
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ message: 'Error fetching all orders' });
     }
 });
 
@@ -322,8 +463,27 @@ async function autoMigrationArticles() {
     }
 }
 
+async function ensureAdminUser() {
+    const adminEmail = process.env.ADMIN_EMAIL || 'admin@starsano.com.mx';
+    const adminPass = process.env.ADMIN_PASSWORD || 'ChangeMeAtStartup123!';
+    try {
+        const check = await pool.query('SELECT * FROM users WHERE email = $1', [adminEmail]);
+        if (check.rows.length === 0) {
+            const hashed = await hashPassword(adminPass);
+            await pool.query(
+                "INSERT INTO users (email, password_hash, role) VALUES ($1, $2, 'admin')",
+                [adminEmail, hashed]
+            );
+            console.log(`✅ Admin user created: ${adminEmail}`);
+        }
+    } catch (err: any) {
+        console.error('Error ensuring admin user:', err.message);
+    }
+}
+
 app.listen(port, () => {
     console.log(`Server running on port ${port}`);
     autoImportProducts().catch(err => console.error('Unhandled auto-import error:', err));
     autoMigrationArticles().catch(err => console.error('Unhandled migration error:', err));
+    ensureAdminUser().catch(err => console.error('Unhandled admin creation error:', err));
 });

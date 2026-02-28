@@ -8,6 +8,21 @@ const Home: React.FC = () => {
   const [products, setProducts] = React.useState<any[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState<string | null>(null);
+  const [newsletterEmail, setNewsletterEmail] = React.useState('');
+  const [newsletterStatus, setNewsletterStatus] = React.useState<'idle' | 'loading' | 'success' | 'error'>('idle');
+
+  const handleNewsletterSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newsletterEmail) return;
+    setNewsletterStatus('loading');
+    try {
+      await api.subscribeNewsletter(newsletterEmail);
+      setNewsletterStatus('success');
+      setNewsletterEmail('');
+    } catch (err) {
+      setNewsletterStatus('error');
+    }
+  };
 
   React.useEffect(() => {
     console.log('Fetching products from api');
@@ -237,6 +252,37 @@ const Home: React.FC = () => {
         </div>
       </section>
 
+      {/* Newsletter - Moved Up */}
+      <section className="py-24 bg-primary text-white text-center">
+        <div className="max-w-xl mx-auto px-4">
+          <span className="material-symbols-outlined text-4xl mb-6 text-accent">spa</span>
+          <h2 className="text-3xl md:text-4xl mb-4 text-white">Únete a la comunidad Starsano</h2>
+          <p className="text-white/70 mb-8 font-light">
+            Recibe consejos de bienestar, recetas exclusivas y un 10% de descuento en tu primera compra.
+          </p>
+          <form className="flex flex-col sm:flex-row gap-2" onSubmit={handleNewsletterSubmit}>
+            <input
+              type="email"
+              value={newsletterEmail}
+              onChange={(e) => setNewsletterEmail(e.target.value)}
+              placeholder="Tu correo electrónico"
+              className="flex-1 bg-white/10 border border-white/20 text-white placeholder:text-white/40 px-4 py-3 focus:outline-none focus:border-accent"
+              required
+              disabled={newsletterStatus === 'loading'}
+            />
+            <button
+              type="submit"
+              disabled={newsletterStatus === 'loading'}
+              className="bg-white text-primary px-8 py-3 font-bold uppercase tracking-widest text-sm hover:bg-accent hover:text-white transition-colors disabled:opacity-50"
+            >
+              {newsletterStatus === 'loading' ? 'Enviando...' : 'Suscribirse'}
+            </button>
+          </form>
+          {newsletterStatus === 'success' && <p className="mt-4 text-accent font-bold">¡Gracias por suscribirte!</p>}
+          {newsletterStatus === 'error' && <p className="mt-4 text-red-300">Hubo un error. Intenta de nuevo.</p>}
+        </div>
+      </section>
+
       {/* Story / About Teaser */}
       <section className="py-24 bg-background-contrast/5">
         <div className="max-w-7xl mx-auto px-4 grid grid-cols-1 md:grid-cols-2 gap-16 items-center">
@@ -270,26 +316,7 @@ const Home: React.FC = () => {
         </div>
       </section>
 
-      {/* Newsletter */}
-      <section className="py-24 bg-primary text-white text-center">
-        <div className="max-w-xl mx-auto px-4">
-          <span className="material-symbols-outlined text-4xl mb-6 text-accent">spa</span>
-          <h2 className="text-3xl md:text-4xl mb-4">Únete a la comunidad Starsano</h2>
-          <p className="text-white/70 mb-8 font-light">
-            Recibe consejos de bienestar, recetas exclusivas y un 10% de descuento en tu primera compra.
-          </p>
-          <form className="flex flex-col sm:flex-row gap-2" onSubmit={(e) => e.preventDefault()}>
-            <input
-              type="email"
-              placeholder="Tu correo electrónico"
-              className="flex-1 bg-white/10 border border-white/20 text-white placeholder:text-white/40 px-4 py-3 focus:outline-none focus:border-accent"
-            />
-            <button type="submit" className="bg-white text-primary px-8 py-3 font-bold uppercase tracking-widest text-sm hover:bg-accent hover:text-white transition-colors">
-              Suscribirse
-            </button>
-          </form>
-        </div>
-      </section>
+      {/* Newsletter section was here, now moved up */}
 
       {/* Blog Journal */}
       <section className="py-24 bg-background">
