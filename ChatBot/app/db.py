@@ -1,7 +1,7 @@
 import os
 import psycopg2
 from psycopg2.extras import RealDictCursor
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 
 class StoreDB:
     def __init__(self):
@@ -67,6 +67,28 @@ class StoreDB:
             with conn.cursor() as cur:
                 cur.execute("SELECT id, name, price, description, category, badges FROM products")
                 return cur.fetchall()
+        finally:
+            conn.close()
+
+    def get_order_status(self, order_id: str, email: str) -> Optional[Dict[str, Any]]:
+        """
+        Busca el estado de un pedido dado su ID y el email del usuario.
+        """
+        conn = self._get_connection()
+        try:
+            with conn.cursor() as cur:
+                # Primero buscamos el usuario por email
+                cur.execute("SELECT id FROM users WHERE email = %s", (email,))
+                user = cur.fetchone()
+                if not user:
+                    return None
+                
+                # Buscamos el pedido para ese usuario
+                cur.execute(
+                    "SELECT id, total, status, created_at FROM orders WHERE id = %s AND user_id = %s",
+                    (order_id, user['id'])
+                )
+                return cur.fetchone()
         finally:
             conn.close()
 

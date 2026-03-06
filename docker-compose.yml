@@ -22,6 +22,9 @@ services:
       POSTGRES_HOST: db
       POSTGRES_DB: ${POSTGRES_DB:-starsano}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      JWT_SECRET: ${JWT_SECRET:-your_super_secret_jwt_key_change_me}
+      ADMIN_EMAIL: ${ADMIN_EMAIL:-admin@starsano.com.mx}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-ChangeMeAtStartup123!}
     volumes:
       - ./server/src:/app/src
       - ./server/package.json:/app/package.json

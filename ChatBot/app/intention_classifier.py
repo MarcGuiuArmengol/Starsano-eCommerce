@@ -37,6 +37,7 @@ Debes devolver **EXACTAMENTE UNA** de estas tres palabras (sin frases, sin JSON,
 
 product_search
 general_question
+order_tracking
 need_human
 
 Definiciones estrictas:
@@ -52,11 +53,16 @@ general_question →
 - Saludos o conversación inicial sin pedir un producto concreto
 - Ubicación de la tienda, horario o contacto
 
+order_tracking →
+- El usuario quiere saber el estado de su pedido.
+- Menciona un número de pedido (ej: "pedido 123").
+- Pregunta "¿dónde está mi pedido?" o similares.
+
 need_human →
-- Enfado, quejas, insultos o frustración explícita
-- Seguimiento de pedidos específicos, reembolsos, cambios, cancelaciones
-- Problemas con pagos, cargos, pedidos no recibidos
-- Peticiones que implican acciones que el bot no puede realizar
+- Enfado, quejas, insultos o frustración explícita.
+- Reembolsos, cambios, cancelaciones complejas.
+- Problemas graves con pagos o cargos incorrectos.
+- Peticiones que implican acciones que el bot no puede realizar.
 
 Reglas IMPORTANTES:
 - No inventes intención.
@@ -137,6 +143,18 @@ Context: {context}
 
 Response (Conversational & Natural Spanish):"""
 
+ORDER_INFO_PROMPT = """Extrae el ID del pedido y el EMAIL del usuario del siguiente mensaje.
+Responde SOLO en formato JSON: {{"order_id": "valor", "email": "valor"}}.
+Si no encuentras alguno, pon null.
+
+Mensaje: {message}
+JSON:"""
+
+order_info_prompt_template = PromptTemplate(
+    input_variables=["message"],
+    template=ORDER_INFO_PROMPT
+)
+
 KEYWORDS_PROMPT = """Extrae el nombre del producto o ingredientes clave del siguiente mensaje de un usuario para buscarlo en una base de datos.
 Responde SOLO con los términos de búsqueda, sin nada más. No incluyas puntuación ni artículos innecesarios.
 Ejemplos:
@@ -161,18 +179,15 @@ def extract_search_keywords(message: str) -> str:
         print(f"Error extrayendo keywords: {e}")
         return message
 
-def classify_intention(message: str, context: str = "") -> Literal["product_search", "general_question", "need_human"]:
+def classify_intention(message: str, context: str = "") -> Literal["product_search", "general_question", "order_tracking", "need_human"]:
     try:
         prompt = prompt_template.format(message=message, context=context)
         response = llm.invoke(prompt)
         intention = response.content.strip().lower()
-        valid_intentions = ["product_search", "general_question", "need_human"]
+        valid_intentions = ["product_search", "general_question", "order_tracking", "need_human"]
         if intention not in valid_intentions:
             return "general_question"
         return intention
-    except Exception as e:
-        print(f"Error en clasificación: {e}")
-        return "general_question"
     except Exception as e:
         print(f"Error en clasificación: {e}")
         return "general_question"
@@ -238,10 +253,59 @@ def handle_need_human(message: str, user_id: str, thread_id: str, slots: Dict[st
     response_text = generate_need_human_response(message)
     return {"status": "handled", "intention": "need_human", "notify_email": True, "response_text": response_text}
 
+def handle_order_tracking(message: str, user_id: str, thread_id: str, slots: Dict[str, Any]) -> dict:
+    try:
+        # Intentar extraer info
+        prompt = order_info_prompt_template.format(message=message)
+        response = llm.invoke(prompt)
+        data = json.loads(response.content.strip())
+        
+        order_id = data.get("order_id")
+        email = data.get("email")
+
+        # Fallback a slots si están guardados en el hilo (pendiete implementar en MemoryStore si se quiere persistencia fina)
+        
+        if not order_id or not email:
+            return {
+                "status": "handled",
+                "intention": "order_tracking",
+                "response_text": "Para ayudarte con el seguimiento de tu pedido, necesito que me proporciones el **ID del pedido** y el **correo electrónico** que usaste en la compra. 😊"
+            }
+        
+        order = db_client.get_order_status(order_id, email)
+        if not order:
+            return {
+                "status": "handled",
+                "intention": "order_tracking",
+                "response_text": f"Lo siento, no pude encontrar ningún pedido con el ID **{order_id}** asociado al correo **{email}**. Por favor, verifica los datos e intenta de nuevo."
+            }
+        
+        status_map = {
+            "pending": "Pendiente (estamos preparando tu paquete) 📦",
+            "paid": "Pagado y en proceso de envío ✅",
+            "shipped": "En camino (¡ya salió de nuestra tienda!) 🚚",
+            "cancelled": "Cancelado ❌",
+        }
+        status_friendly = status_map.get(order['status'], order['status'])
+        
+        return {
+            "status": "handled",
+            "intention": "order_tracking",
+            "response_text": f"¡Hola! He encontrado tu pedido **#{order_id}**.\n\nEstado actual: **{status_friendly}**\nTotal: **${order['total']} MXN**\nFecha de compra: {order['created_at'].strftime('%d/%m/%Y')}\n\n¿En qué más te puedo ayudar?"
+        }
+    except Exception as e:
+        print(f"Error en handle_order_tracking: {e}")
+        return {
+            "status": "handled",
+            "intention": "order_tracking",
+            "response_text": "Tuve un pequeño problema consultando tu pedido, pero puedes contactarnos directamente al +52 56 3082 0401 y te ayudaremos de inmediato."
+        }
+
 def route_message(intention: str, message: str, user_id: str, thread_id: str, slots: Dict[str, Any]) -> dict:
     routers = {
         "product_search": handle_product_search,
         "general_question": handle_general_question,
+        "order_tracking": handle_order_tracking,
         "need_human": handle_need_human
     }
     handler = routers.get(intention)

@@ -4,6 +4,7 @@ import { Pool } from 'pg';
 import dotenv from 'dotenv';
 import fs from 'fs';
 import path from 'path';
+import multer from 'multer';
 import { parse } from 'csv-parse/sync';
 import { hashPassword, comparePassword, generateToken, verifyToken } from './auth';
 
@@ -22,6 +23,27 @@ const pool = new Pool({
     password: process.env.POSTGRES_PASSWORD || 'postgres',
     port: 5432,
 });
+
+// Multer Configuration for Image Uploads
+const uploadDir = path.join(process.cwd(), 'uploads');
+if (!fs.existsSync(uploadDir)) {
+    fs.mkdirSync(uploadDir);
+}
+
+const storage = multer.diskStorage({
+    destination: (req: any, file: any, cb: any) => {
+        cb(null, uploadDir);
+    },
+    filename: (req: any, file: any, cb: any) => {
+        const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+        cb(null, uniqueSuffix + '-' + file.originalname);
+    }
+});
+
+const upload = multer({ storage: storage });
+
+// Serve uploads static
+app.use('/uploads', express.static(uploadDir));
 
 // Auth Middleware
 const authenticateToken = (req: Request, res: Response, next: any) => {
@@ -184,6 +206,17 @@ app.post('/api/auth/register', async (req: Request, res: Response) => {
     const { email, password } = req.body;
     if (!email || !password) return res.status(400).json({ message: 'Email and password required' });
 
+    // Basic email validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+        return res.status(400).json({ message: 'Invalid email format' });
+    }
+
+    // Backend password complexity check
+    if (password.length < 8) {
+        return res.status(400).json({ message: 'Password must be at least 8 characters long' });
+    }
+
     try {
         const hashedPassword = await hashPassword(password);
         const result = await pool.query(
@@ -201,18 +234,28 @@ app.post('/api/auth/register', async (req: Request, res: Response) => {
 
 app.post('/api/auth/login', async (req: Request, res: Response) => {
     const { email, password } = req.body;
+    const loginEmail = (email || '').trim().toLowerCase();
+    console.log(`[DEBUG] Login attempt for email: ${loginEmail}`);
     try {
-        const result = await pool.query('SELECT * FROM users WHERE email = $1', [email]);
-        if (result.rows.length === 0) return res.status(401).json({ message: 'Invalid credentials' });
+        const result = await pool.query('SELECT * FROM users WHERE email = $1', [loginEmail]);
+        if (result.rows.length === 0) {
+            console.log(`[DEBUG] User not found: ${email}`);
+            return res.status(401).json({ message: 'Invalid credentials' });
+        }
 
         const user = result.rows[0];
+        console.log(`[DEBUG] User found. Role: ${user.role}. Attempting password comparison...`);
         const valid = await comparePassword(password, user.password_hash);
-        if (!valid) return res.status(401).json({ message: 'Invalid credentials' });
+        if (!valid) {
+            console.log(`[DEBUG] Password mismatch for: ${email}`);
+            return res.status(401).json({ message: 'Invalid credentials' });
+        }
 
+        console.log(`[DEBUG] Login successful for: ${email}`);
         const token = generateToken(user.id, user.role);
         res.json({ token, user: { email: user.email, role: user.role } });
     } catch (err) {
-        console.error(err);
+        console.error('[ERROR] Login error:', err);
         res.status(500).json({ message: 'Login error' });
     }
 });
@@ -285,6 +328,36 @@ app.get('/api/orders/history', authenticateToken, async (req: Request, res: Resp
     }
 });
 
+app.get('/api/orders/:id', authenticateToken, async (req: Request, res: Response) => {
+    try {
+        const { id } = req.params;
+        const { userId, role } = (req as any).user;
+
+        const result = await pool.query('SELECT * FROM orders WHERE id = $1', [id]);
+        if (result.rows.length === 0) {
+            return res.status(404).json({ message: 'Order not found' });
+        }
+
+        const order = result.rows[0];
+
+        // Authorization check: User must own the order OR be an admin
+        if (order.user_id !== userId && role !== 'admin') {
+            return res.status(403).json({ message: 'Unauthorized access to this order' });
+        }
+
+        // Fetch order items
+        const itemsResult = await pool.query(
+            'SELECT oi.*, p.name as product_name FROM order_items oi JOIN products p ON oi.product_id = p.id WHERE oi.order_id = $1',
+            [id]
+        );
+
+        res.json({ ...order, items: itemsResult.rows });
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ message: 'Error fetching order details' });
+    }
+});
+
 // ADMIN ROUTES (GET ALL ORDERS)
 app.get('/api/admin/orders', authenticateToken, isAdmin, async (req: Request, res: Response) => {
     try {
@@ -298,8 +371,74 @@ app.get('/api/admin/orders', authenticateToken, isAdmin, async (req: Request, re
     }
 });
 
+// ADMIN PRODUCT CRUD
+app.post('/api/admin/products', authenticateToken, isAdmin, async (req: Request, res: Response) => {
+    const { name, price, description, image, category, badges, rating } = req.body;
+    try {
+        const result = await pool.query(
+            `INSERT INTO products (name, price, description, image, category, badges, rating)
+             VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`,
+            [name, price, description, image, category, badges || [], rating || 0]
+        );
+        res.status(201).json(result.rows[0]);
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ message: 'Error creating product' });
+    }
+});
+
+app.put('/api/admin/products/:id', authenticateToken, isAdmin, async (req: Request, res: Response) => {
+    const { id } = req.params;
+    const { name, price, description, image, category, badges, rating } = req.body;
+    try {
+        const result = await pool.query(
+            `UPDATE products SET name=$1, price=$2, description=$3, image=$4, category=$5, badges=$6, rating=$7
+             WHERE id=$8 RETURNING *`,
+            [name, price, description, image, category, badges, rating, id]
+        );
+        if (result.rows.length === 0) return res.status(404).json({ message: 'Product not found' });
+        res.json(result.rows[0]);
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ message: 'Error updating product' });
+    }
+});
+
+app.delete('/api/admin/products/:id', authenticateToken, isAdmin, async (req: Request, res: Response) => {
+    const { id } = req.params;
+    try {
+        const result = await pool.query('DELETE FROM products WHERE id = $1 RETURNING id', [id]);
+        if (result.rows.length === 0) return res.status(404).json({ message: 'Product not found' });
+        res.json({ message: 'Product deleted', id: result.rows[0].id });
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ message: 'Error deleting product' });
+    }
+});
+
+// ADMIN UPLOAD
+app.post('/api/admin/upload', authenticateToken, isAdmin, upload.single('image'), (req: Request, res: Response) => {
+    const file = (req as any).file;
+    if (!file) {
+        return res.status(400).json({ message: 'No file uploaded' });
+    }
+    const imageUrl = `${req.protocol}://${req.get('host')}/uploads/${file.filename}`;
+    res.json({ imageUrl });
+});
+
+// ADMIN MANUAL IMPORT
+app.post('/api/admin/import', authenticateToken, isAdmin, async (req: Request, res: Response) => {
+    try {
+        await autoImportProducts();
+        res.json({ message: 'Importación completada con éxito' });
+    } catch (err: any) {
+        console.error(err);
+        res.status(500).json({ message: 'Error durante la importación: ' + err.message });
+    }
+});
+
 // Helper to wait for DB to be ready
-async function waitForDB(retries = 5, delay = 2000) {
+async function waitForDB(retries = 15, delay = 2000) {
     for (let i = 0; i < retries; i++) {
         try {
             const client = await pool.connect();
@@ -316,11 +455,7 @@ async function waitForDB(retries = 5, delay = 2000) {
 
 // Auto-import products from CSV on startup
 async function autoImportProducts() {
-    if (!(await waitForDB())) {
-        console.error('❌ Could not connect to database. Skipping auto-import.');
-        return;
-    }
-
+    // Note: We now wait for DB in the main app.listen loop
     const csvPath = path.join(process.cwd(), 'products_template.csv');
     if (!fs.existsSync(csvPath)) {
         console.log('No products_template.csv found, skipping auto-import.');
@@ -464,26 +599,61 @@ async function autoMigrationArticles() {
 }
 
 async function ensureAdminUser() {
-    const adminEmail = process.env.ADMIN_EMAIL || 'admin@starsano.com.mx';
+    console.log('[DEBUG] Starting ensureAdminUser...');
+    const adminEmail = (process.env.ADMIN_EMAIL || 'admin@starsano.com.mx').trim().toLowerCase();
     const adminPass = process.env.ADMIN_PASSWORD || 'ChangeMeAtStartup123!';
+
     try {
-        const check = await pool.query('SELECT * FROM users WHERE email = $1', [adminEmail]);
-        if (check.rows.length === 0) {
-            const hashed = await hashPassword(adminPass);
-            await pool.query(
-                "INSERT INTO users (email, password_hash, role) VALUES ($1, $2, 'admin')",
-                [adminEmail, hashed]
-            );
-            console.log(`✅ Admin user created: ${adminEmail}`);
-        }
+        const hashed = await hashPassword(adminPass);
+        console.log(`[DEBUG] Syncing admin: ${adminEmail}`);
+
+        // Let's check what users we have first (debug only)
+        const allUsers = await pool.query('SELECT email, role FROM users');
+        console.log(`[DEBUG] Current users in DB: ${allUsers.rows.length}`);
+        allUsers.rows.forEach(u => console.log(` - ${u.email} (${u.role})`));
+
+        await pool.query(
+            `INSERT INTO users (email, password_hash, role) 
+             VALUES ($1, $2, 'admin')
+             ON CONFLICT (email) DO UPDATE SET password_hash = $2, role = 'admin'`,
+            [adminEmail, hashed]
+        );
+        console.log(`[DEBUG] ✅ Admin user synced successfully: ${adminEmail}`);
     } catch (err: any) {
-        console.error('Error ensuring admin user:', err.message);
+        console.error('[ERROR] Error in ensureAdminUser:', err);
     }
 }
 
-app.listen(port, () => {
-    console.log(`Server running on port ${port}`);
-    autoImportProducts().catch(err => console.error('Unhandled auto-import error:', err));
-    autoMigrationArticles().catch(err => console.error('Unhandled migration error:', err));
-    ensureAdminUser().catch(err => console.error('Unhandled admin creation error:', err));
+app.listen(port, async () => {
+    console.log(`[DEBUG] Server listening on port ${port}`);
+    console.log('[DEBUG] --- STARTING INITIALIZATION SEQUENCE ---');
+
+    // 1. Wait for Database to be ready (critical)
+    const dbReady = await waitForDB();
+    if (!dbReady) {
+        console.error('[ERROR] CRITICAL: Database not ready after multiple attempts. Initialization aborted.');
+        process.exit(1);
+    }
+
+    // 2. Sync Admin User (important)
+    try {
+        await ensureAdminUser();
+        console.log('[DEBUG] ensureAdminUser process completed');
+    } catch (err) {
+        console.error('[ERROR] ensureAdminUser failed to complete:', err);
+    }
+
+    // 3. Import Data and Articles
+    try {
+        console.log('[DEBUG] Starting background migrations and imports...');
+        await Promise.all([
+            autoImportProducts().catch(err => console.error('[ERROR] autoImportProducts failed:', err)),
+            autoMigrationArticles().catch(err => console.error('[ERROR] autoMigrationArticles failed:', err))
+        ]);
+        console.log('[DEBUG] Background initialization tasks finished');
+    } catch (err) {
+        console.error('[ERROR] Background tasks failed:', err);
+    }
+
+    console.log('[DEBUG] --- INITIALIZATION COMPLETED ---');
 });

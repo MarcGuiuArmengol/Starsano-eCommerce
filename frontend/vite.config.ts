@@ -12,6 +12,11 @@ export default defineConfig(({ mode }) => {
         '/api': {
           target: 'http://backend:3000',
           changeOrigin: true,
+        },
+        '/chat_api': {
+          target: 'http://chatbot:8000',
+          changeOrigin: true,
+          rewrite: (path) => path.replace(/^\/chat_api/, '')
         }
       }
     },

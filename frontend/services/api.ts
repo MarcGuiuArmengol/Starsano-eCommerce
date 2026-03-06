@@ -1,6 +1,6 @@
 // Centralized API service to handle fetching from the backend
-const API_BASE_URL = import.meta.env.VITE_API_URL || '';
-const CHAT_API_URL = import.meta.env.VITE_CHAT_API_URL || 'http://localhost:8000';
+const API_BASE_URL = ''; // Use relative paths for Vite proxy
+const CHAT_API_URL = '/chat_api'; // We'll update vite.config.ts to proxy this too
 
 export const api = {
     getProducts: async () => {
