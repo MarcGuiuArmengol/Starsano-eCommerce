@@ -1,48 +1,50 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import ProductCard from '../components/ProductCard';
-import { CATEGORIES } from '../constants';
 import { Product } from '../types';
 import { api } from '../services/api';
+import { CATEGORIES, PRODUCT_LABELS } from '../constants';
 
 const Shop: React.FC = () => {
     const [products, setProducts] = useState<Product[]>([]);
     const [loading, setLoading] = useState(true);
     const [selectedCategory, setSelectedCategory] = useState<string>('all');
-    const [selectedBadges, setSelectedBadges] = useState<string[]>([]);
+    const [selectedLabels, setSelectedLabels] = useState<string[]>([]);
     const [searchQuery, setSearchQuery] = useState('');
 
-    React.useEffect(() => {
-        console.log("Fetching products from api...");
-        setLoading(true);
-        api.getProducts()
-            .then(data => {
-                console.log(`Fetched ${data.length} products`);
-                const mappedProducts = data.map((p: any) => ({
-                    ...p,
-                    id: String(p.id)
-                }));
-                setProducts(mappedProducts);
-                setLoading(false);
-            })
-            .catch(err => {
-                console.error("Failed to fetch products:", err.message);
-                setLoading(false);
-            });
+    useEffect(() => {
+        loadData();
     }, []);
+
+    const loadData = async () => {
+        setLoading(true);
+        try {
+            const productsData = await api.getProducts();
+            setProducts(productsData);
+        } catch (err) {
+            console.error("Failed to fetch shop data:", err);
+        } finally {
+            setLoading(false);
+        }
+    };
 
     const filteredProducts = useMemo(() => {
         return products.filter((product: Product) => {
-            const matchCategory = selectedCategory === 'all' || product.category === selectedCategory;
-            const matchSearch = product.name.toLowerCase().includes(searchQuery.toLowerCase());
-            const matchBadges = selectedBadges.length === 0 ||
-                selectedBadges.every(badge => product.badges?.includes(badge));
-            return matchCategory && matchSearch && matchBadges;
-        });
-    }, [products, selectedCategory, selectedBadges, searchQuery]);
+            const matchCategory = true;
 
-    const toggleBadge = (badge: string) => {
-        setSelectedBadges(prev =>
-            prev.includes(badge) ? prev.filter(b => b !== badge) : [...prev, badge]
+            const matchSearch = product.name.toLowerCase().includes(searchQuery.toLowerCase());
+
+            const matchLabels = selectedLabels.length === 0 ||
+                selectedLabels.every(label =>
+                    product.badges?.includes(label)
+                );
+
+            return matchCategory && matchSearch && matchLabels;
+        });
+    }, [products, selectedCategory, selectedLabels, searchQuery]);
+
+    const toggleLabel = (value: string) => {
+        setSelectedLabels(prev =>
+            prev.includes(value) ? prev.filter(l => l !== value) : [...prev, value]
         );
     };
 
@@ -50,8 +52,8 @@ const Shop: React.FC = () => {
         <div className="bg-background min-h-screen">
             {/* Header Banner */}
             <div className="bg-primary text-white py-16 px-4 text-center">
-                <h1 className="text-4xl md:text-5xl mb-2">Tienda</h1>
-                <p className="text-white/60 font-light max-w-xl mx-auto">Explora nuestra colección completa de productos naturales.</p>
+                <h1 className="text-4xl md:text-5xl mb-2 font-heading">Tienda</h1>
+                <p className="text-white/60 font-light max-w-xl mx-auto">Explora nuestra colección completa de productos naturales y orgánicos.</p>
             </div>
 
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
@@ -69,7 +71,7 @@ const Shop: React.FC = () => {
                                 <div className="relative">
                                     <input
                                         type="text"
-                                        className="w-full bg-transparent border-b border-foreground/30 py-2 pl-0 pr-8 text-sm focus:border-primary focus:ring-0 placeholder:text-secondary/50"
+                                        className="w-full bg-transparent border-b border-foreground/30 py-2 pl-0 pr-8 text-sm focus:border-primary focus:ring-0 placeholder:text-secondary/50 outline-none transition-colors"
                                         placeholder="Buscar producto..."
                                         value={searchQuery}
                                         onChange={(e) => setSearchQuery(e.target.value)}
@@ -77,48 +79,25 @@ const Shop: React.FC = () => {
                                     <span className="material-symbols-outlined absolute right-0 top-1/2 -translate-y-1/2 text-secondary text-lg">search</span>
                                 </div>
 
-                                {/* Categories */}
-                                <div>
-                                    <h3 className="font-heading text-xs font-bold text-foreground uppercase tracking-widest mb-6">Categorías</h3>
-                                    <div className="space-y-4">
-                                        <button
-                                            onClick={() => setSelectedCategory('all')}
-                                            className={`block w-full text-left text-sm transition-colors ${selectedCategory === 'all' ? 'text-primary font-bold translate-x-1' : 'text-secondary hover:text-foreground'}`}
-                                        >
-                                            Ver todo
-                                        </button>
-                                        {CATEGORIES.map(cat => (
-                                            <button
-                                                key={cat.id}
-                                                onClick={() => setSelectedCategory(cat.slug)}
-                                                className={`block w-full text-left text-sm transition-all ${selectedCategory === cat.slug ? 'text-primary font-bold translate-x-1' : 'text-secondary hover:text-foreground'}`}
-                                            >
-                                                {cat.name}
-                                            </button>
-                                        ))}
-                                    </div>
-                                </div>
 
-                                {/* Badge Filters */}
+                                {/* Attribute Filters */}
                                 <div>
-                                    <h3 className="font-heading text-xs font-bold text-foreground uppercase tracking-widest mb-6 font-bold">Filtros</h3>
+                                    <h3 className="font-heading text-xs font-bold text-foreground uppercase tracking-widest mb-6">Filtros</h3>
                                     <div className="space-y-3">
-                                        {[
-                                            { label: 'Orgánicos', value: 'Organic' },
-                                            { label: 'Sin Azúcar', value: 'Sugar Free' },
-                                            { label: 'Sin Gluten', value: 'Gluten Free' }
-                                        ].map(filter => (
-                                            <div key={filter.value} className="flex items-center gap-3 cursor-pointer group" onClick={() => toggleBadge(filter.value)}>
+                                        {PRODUCT_LABELS.map(label => (
+                                            <div key={label.value} className="flex items-center gap-3 cursor-pointer group" onClick={() => toggleLabel(label.value)}>
                                                 <div
-                                                    className={`w-5 h-5 border flex items-center justify-center transition-all ${selectedBadges.includes(filter.value) ? 'bg-primary border-primary' : 'border-slate-300 group-hover:border-primary'}`}
+                                                    className={`w-5 h-5 border flex items-center justify-center transition-all ${selectedLabels.includes(label.value) ? 'bg-primary border-primary' : 'border-slate-300 group-hover:border-primary'}`}
                                                 >
-                                                    {selectedBadges.includes(filter.value) && (
+                                                    {selectedLabels.includes(label.value) && (
                                                         <span className="material-symbols-outlined text-white text-base">check</span>
                                                     )}
                                                 </div>
-                                                <span className={`text-sm transition-colors ${selectedBadges.includes(filter.value) ? 'text-primary font-bold' : 'text-secondary group-hover:text-foreground'}`}>
-                                                    {filter.label}
-                                                </span>
+                                                <div className="flex items-center gap-2">
+                                                    <span className={`text-sm transition-colors ${selectedLabels.includes(label.value) ? 'text-primary font-bold' : 'text-secondary group-hover:text-foreground'}`}>
+                                                        {label.label}
+                                                    </span>
+                                                </div>
                                             </div>
                                         ))}
                                     </div>
@@ -128,23 +107,18 @@ const Shop: React.FC = () => {
 
                         {/* Product Grid */}
                         <div className="flex-1">
-                            <div className="mb-6 flex justify-between items-center">
-                                <span className="text-xs font-bold uppercase tracking-widest text-secondary">{filteredProducts.length} Productos</span>
-
-                                {/* Mobile Filter Toggle (Visual Only for now) */}
-                                <button className="lg:hidden flex items-center gap-2 text-xs font-bold uppercase tracking-widest">
-                                    Filtros <span className="material-symbols-outlined text-sm">tune</span>
-                                </button>
+                            <div className="mb-6 flex justify-between items-center bg-white/50 p-4 rounded-lg backdrop-blur-sm border border-background-contrast/5">
+                                <span className="text-xs font-bold uppercase tracking-widest text-secondary">{filteredProducts.length} Productos encontrados</span>
                             </div>
 
                             {filteredProducts.length === 0 ? (
-                                <div className="text-center py-20 border border-dashed border-background-contrast/50 rounded-sm">
-                                    <span className="material-symbols-outlined text-4xl text-background-contrast mb-2">filter_list_off</span>
-                                    <h3 className="text-lg font-bold text-foreground">Sin resultados</h3>
-                                    <p className="text-secondary font-light">Intenta ajustar tus filtros de búsqueda.</p>
+                                <div className="text-center py-20 border border-dashed border-background-contrast/20 rounded-xl bg-white/30">
+                                    <span className="material-symbols-outlined text-5xl text-background-contrast mb-4 opacity-20">inventory_2</span>
+                                    <h3 className="text-xl font-bold text-foreground font-heading">Sin resultados</h3>
+                                    <p className="text-secondary font-light mb-6">Intenta ajustar tus filtros de búsqueda.</p>
                                     <button
-                                        onClick={() => { setSelectedCategory('all'); setSearchQuery(''); setSelectedBadges([]); }}
-                                        className="mt-4 text-primary border-b border-primary pb-0.5 text-sm font-bold hover:text-accent hover:border-accent"
+                                        onClick={() => { setSearchQuery(''); setSelectedLabels([]); }}
+                                        className="text-primary border-b border-primary/20 pb-0.5 text-xs font-bold uppercase tracking-widest hover:border-primary transition-all"
                                     >
                                         Limpiar filtros
                                     </button>

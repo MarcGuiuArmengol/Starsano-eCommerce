@@ -1,5 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { api } from '../services/api';
+import { useUser } from '../context/UserContext';
 
 interface Message {
     role: 'user' | 'assistant';
@@ -7,12 +9,14 @@ interface Message {
 }
 
 const ChatWidget: React.FC = () => {
+    const navigate = useNavigate();
     const [isOpen, setIsOpen] = useState(false);
     const [messages, setMessages] = useState<Message[]>([]);
     const [inputText, setInputText] = useState('');
     const [isLoading, setIsLoading] = useState(false);
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const sessionId = useRef(Math.random().toString(36).substring(7));
+    const { user } = useUser();
 
     const scrollToBottom = () => {
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -31,7 +35,7 @@ const ChatWidget: React.FC = () => {
         setIsLoading(true);
 
         try {
-            const data = await api.chat(userMessage, sessionId.current);
+            const data = await api.chat(userMessage, sessionId.current, user?.email);
             setMessages(prev => [...prev, { role: 'assistant', content: data.response }]);
         } catch (error) {
             console.error('Chat error:', error);
@@ -61,17 +65,29 @@ const ChatWidget: React.FC = () => {
 
             // The link as a styled block button with spacing
             const [full, text, url] = match;
+            const isInternal = url.startsWith('/');
+
             parts.push(
                 <div key={match.index} className="my-3">
-                    <a
-                        href={url}
-                        className="inline-flex items-center gap-2 bg-primary text-white px-5 py-2.5 rounded-sm text-[10px] font-bold uppercase tracking-widest hover:bg-accent transition-all shadow-md no-underline"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                    >
-                        {text}
-                        <span className="material-symbols-outlined text-sm">open_in_new</span>
-                    </a>
+                    {isInternal ? (
+                        <button
+                            onClick={() => navigate(url)}
+                            className="inline-flex items-center gap-2 bg-primary text-white px-5 py-2.5 rounded-sm text-[10px] font-bold uppercase tracking-widest hover:bg-accent transition-all shadow-md"
+                        >
+                            {text}
+                            <span className="material-symbols-outlined text-sm">arrow_forward</span>
+                        </button>
+                    ) : (
+                        <a
+                            href={url}
+                            className="inline-flex items-center gap-2 bg-primary text-white px-5 py-2.5 rounded-sm text-[10px] font-bold uppercase tracking-widest hover:bg-accent transition-all shadow-md no-underline"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                        >
+                            {text}
+                            <span className="material-symbols-outlined text-sm">open_in_new</span>
+                        </a>
+                    )}
                 </div>
             );
 

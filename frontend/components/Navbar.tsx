@@ -26,7 +26,7 @@ const Navbar: React.FC = () => {
           <nav className="hidden lg:flex items-center gap-8">
             <Link to="/" className={`text-xs font-bold uppercase tracking-widest hover:text-accent transition-colors ${location.pathname === '/' ? 'text-primary' : 'text-secondary'}`}>Inicio</Link>
             <Link to="/shop" className={`text-xs font-bold uppercase tracking-widest hover:text-accent transition-colors ${location.pathname === '/shop' ? 'text-primary' : 'text-secondary'}`}>Tienda</Link>
-            <Link to="/journal" className={`text-xs font-bold uppercase tracking-widest hover:text-accent transition-colors ${location.pathname === '/journal' ? 'text-primary' : 'text-secondary'}`}>Journal</Link>
+            <Link to="/blog" className={`text-xs font-bold uppercase tracking-widest hover:text-accent transition-colors ${location.pathname === '/blog' ? 'text-primary' : 'text-secondary'}`}>Journal</Link>
             <Link to="/contact" className={`text-xs font-bold uppercase tracking-widest hover:text-accent transition-colors ${location.pathname === '/contact' ? 'text-primary' : 'text-secondary'}`}>Contacto</Link>
             {user?.role === 'admin' && (
               <Link to="/admin" className="text-xs font-bold uppercase tracking-widest text-accent hover:underline">Admin</Link>

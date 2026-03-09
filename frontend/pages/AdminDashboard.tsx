@@ -1,35 +1,42 @@
 import React, { useState, useEffect } from 'react';
 import { useUser } from '../context/UserContext';
+import { api } from '../services/api';
+import { CATEGORIES, PRODUCT_LABELS } from '../constants';
 
 const AdminDashboard: React.FC = () => {
-    const { token } = useUser();
+    const { user, token } = useUser();
     const [activeTab, setActiveTab] = useState<'orders' | 'products'>('orders');
     const [orders, setOrders] = useState<any[]>([]);
     const [products, setProducts] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [importing, setImporting] = useState(false);
+
+    // Product Form
     const [showProductForm, setShowProductForm] = useState(false);
     const [editingProduct, setEditingProduct] = useState<any>(null);
-    const [isDragging, setIsDragging] = useState(false);
-    const [uploading, setUploading] = useState(false);
-
-    // Form state
-    const [formData, setFormData] = useState({
+    const [productFormData, setProductFormData] = useState({
         name: '',
         price: '',
         description: '',
-        category: '',
         image: '',
-        badges: '',
+        badges: [] as string[],
         rating: '5'
     });
 
+    const [isDragging, setIsDragging] = useState(false);
+    const [uploading, setUploading] = useState(false);
+
     useEffect(() => {
         if (token) {
-            fetchOrders();
-            fetchProducts();
+            console.log('[DEBUG] AdminDashboard mounted with token. User role:', user?.role);
+            refreshData();
         }
-    }, [token]);
+    }, [token, user]);
+
+    const refreshData = () => {
+        fetchOrders();
+        fetchProducts();
+    };
 
     const handleImportCSV = async () => {
         if (!confirm('¿Quieres recargar todos los productos desde el archivo CSV? Esto actualizará precios y descripciones existentes.')) return;
@@ -65,7 +72,7 @@ const AdminDashboard: React.FC = () => {
             });
             const result = await res.json();
             if (res.ok) {
-                setFormData(prev => ({ ...prev, image: result.imageUrl }));
+                setProductFormData(prev => ({ ...prev, image: result.imageUrl }));
             }
         } catch (err) {
             console.error('Error uploading file:', err);
@@ -74,7 +81,7 @@ const AdminDashboard: React.FC = () => {
         }
     };
 
-    const onDrop = (e: React.DragEvent) => {
+    const handleDrop = (e: React.DragEvent) => {
         e.preventDefault();
         setIsDragging(false);
         const file = e.dataTransfer.files[0];
@@ -85,20 +92,14 @@ const AdminDashboard: React.FC = () => {
 
     const fetchOrders = async () => {
         try {
-            const response = await fetch(`/api/admin/orders`, {
-                headers: { 'Authorization': `Bearer ${token}` }
-            });
-            const data = await response.json();
-            if (response.ok && Array.isArray(data)) {
+            setLoading(true);
+            const data = await api.adminGetOrders(token);
+            if (Array.isArray(data)) {
                 setOrders(data);
             } else {
-                console.error('Non-array or error response for orders:', data);
                 setOrders([]);
-                if (response.status === 403) {
-                    alert('Acceso denegado: Se requieren permisos de administrador.');
-                }
             }
-        } catch (err) {
+        } catch (err: any) {
             console.error('Error fetching admin orders:', err);
             setOrders([]);
         } finally {
@@ -108,53 +109,62 @@ const AdminDashboard: React.FC = () => {
 
     const fetchProducts = async () => {
         try {
-            const response = await fetch(`/api/products`);
-            const data = await response.json();
-            if (response.ok && Array.isArray(data)) {
+            const data = await api.getProducts();
+            if (Array.isArray(data)) {
                 setProducts(data);
             } else {
                 setProducts([]);
             }
         } catch (err) {
-            console.error('Error fetching items:', err);
+            console.error('Error fetching products:', err);
             setProducts([]);
+        }
+    };
+
+    const handleStatusChange = async (orderId: number, newStatus: string) => {
+        try {
+            await api.updateOrderStatus(orderId, newStatus, token);
+            fetchOrders();
+        } catch (err) {
+            console.error('Error updating status:', err);
+            alert('Error al actualizar el estado del pedido');
         }
     };
 
     const handleProductSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        const url = editingProduct
-            ? `/api/admin/products/${editingProduct.id}`
-            : `/api/admin/products`;
-
-        const method = editingProduct ? 'PUT' : 'POST';
-
-        const payload = {
-            ...formData,
-            price: Number(formData.price),
-            rating: Number(formData.rating),
-            badges: formData.badges.split(',').map(b => b.trim()).filter(b => b !== '')
-        };
-
+        console.log('Submitting product...'); // Check if this shows in browser console
         try {
-            const res = await fetch(url, {
-                method,
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`
-                },
-                body: JSON.stringify(payload)
-            });
-            if (res.ok) {
+            if (!token) {
+                alert('No se ha encontrado el token de autenticación. Por favor, inicia sesión de nuevo.');
+                return;
+            }
+            const payload = {
+                ...productFormData,
+                price: Number(productFormData.price),
+                rating: Number(productFormData.rating),
+                category: productFormData.badges[0] || 'General'
+            };
+
+            console.log('Sending payload:', payload);
+
+            const res = editingProduct
+                ? await api.updateProduct(editingProduct.id, payload, token) // I should add these to api.ts if missing, or use fetch
+                : await api.createProduct(payload, token);
+
+            if (res) {
                 setShowProductForm(false);
                 setEditingProduct(null);
-                setFormData({ name: '', price: '', description: '', category: '', image: '', badges: '', rating: '5' });
+                setProductFormData({ name: '', price: '', description: '', image: '', badges: [], rating: '5' });
                 fetchProducts();
+                alert('Producto guardado correctamente');
             }
-        } catch (err) {
+        } catch (err: any) {
             console.error('Error saving product:', err);
+            alert(`Error al guardar el producto: ${err.message}`);
         }
     };
+
 
     const deleteProduct = async (id: number) => {
         if (!confirm('¿Seguro que quieres eliminar este producto?')) return;
@@ -174,19 +184,21 @@ const AdminDashboard: React.FC = () => {
             <div className="max-w-7xl mx-auto">
                 <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mb-12">
                     <div>
-                        <h1 className="text-4xl text-foreground font-heading">Panel de Control</h1>
+                        <div className="flex items-center gap-4">
+                            <h1 className="text-4xl text-foreground font-heading">Panel de Control</h1>
+                        </div>
                         <p className="text-secondary font-light mt-1">Gestión de tienda y administración</p>
                     </div>
-                    <div className="flex bg-white rounded-lg p-1 shadow-sm border border-background-contrast/5">
+                    <div className="flex bg-white rounded-lg p-1 shadow-sm border border-background-contrast/5 overflow-x-auto max-w-full">
                         <button
                             onClick={() => setActiveTab('orders')}
-                            className={`px-6 py-2 text-xs font-bold uppercase tracking-widest transition-all rounded-md ${activeTab === 'orders' ? 'bg-primary text-white' : 'text-secondary hover:bg-background'}`}
+                            className={`px-4 md:px-6 py-2 text-[10px] md:text-xs font-bold uppercase tracking-widest transition-all rounded-md whitespace-nowrap ${activeTab === 'orders' ? 'bg-primary text-white' : 'text-secondary hover:bg-background'}`}
                         >
                             Pedidos
                         </button>
                         <button
                             onClick={() => setActiveTab('products')}
-                            className={`px-6 py-2 text-xs font-bold uppercase tracking-widest transition-all rounded-md ${activeTab === 'products' ? 'bg-primary text-white' : 'text-secondary hover:bg-background'}`}
+                            className={`px-4 md:px-6 py-2 text-[10px] md:text-xs font-bold uppercase tracking-widest transition-all rounded-md whitespace-nowrap ${activeTab === 'products' ? 'bg-primary text-white' : 'text-secondary hover:bg-background'}`}
                         >
                             Productos
                         </button>
@@ -223,25 +235,46 @@ const AdminDashboard: React.FC = () => {
                                             <th className="px-6 py-4">Total</th>
                                             <th className="px-6 py-4">Estado</th>
                                             <th className="px-6 py-4">Fecha</th>
+                                            <th className="px-6 py-4 text-right">Acciones</th>
                                         </tr>
                                     </thead>
                                     <tbody className="divide-y divide-background-contrast/5">
                                         {loading ? (
-                                            <tr><td colSpan={5} className="text-center py-10">Cargando...</td></tr>
+                                            <tr><td colSpan={6} className="text-center py-10 text-secondary">Cargando...</td></tr>
                                         ) : orders.length === 0 ? (
-                                            <tr><td colSpan={5} className="text-center py-10">No hay pedidos aún</td></tr>
+                                            <tr><td colSpan={6} className="text-center py-10 text-secondary">No hay pedidos aún</td></tr>
                                         ) : orders.map(order => (
-                                            <tr key={order.id} className="hover:bg-background-contrast/5 transition-colors">
-                                                <td className="px-6 py-4 font-mono">#{order.id}</td>
-                                                <td className="px-6 py-4">{order.email}</td>
+                                            <tr key={order.id} className="hover:bg-background-contrast/2 transition-colors">
+                                                <td className="px-6 py-4 font-mono font-bold text-xs">#{order.id}</td>
+                                                <td className="px-6 py-4">
+                                                    <div className="font-medium">{order.email}</div>
+                                                    <div className="text-[10px] text-secondary uppercase tracking-tighter">ID: {order.user_id}</div>
+                                                </td>
                                                 <td className="px-6 py-4 font-bold text-primary">${order.total}</td>
                                                 <td className="px-6 py-4">
-                                                    <span className={`px-2 py-1 rounded-full text-[10px] font-bold uppercase ${order.status === 'pending' ? 'bg-yellow-100 text-yellow-700' : 'bg-green-100 text-green-700'
-                                                        }`}>
-                                                        {order.status}
-                                                    </span>
+                                                    <select
+                                                        value={order.status}
+                                                        onChange={(e) => handleStatusChange(order.id, e.target.value)}
+                                                        className={`px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase border-none outline-none cursor-pointer tracking-widest shadow-sm transition-all focus:ring-2 focus:ring-primary/20 ${order.status === 'pending' ? 'bg-yellow-50 text-yellow-700' :
+                                                            order.status === 'processing' ? 'bg-blue-50 text-blue-700' :
+                                                                order.status === 'shipped' ? 'bg-purple-50 text-purple-700' :
+                                                                    order.status === 'delivered' ? 'bg-green-50 text-green-700' :
+                                                                        'bg-red-50 text-red-700'
+                                                            }`}
+                                                    >
+                                                        <option value="pending">Pendiente</option>
+                                                        <option value="processing">Procesando</option>
+                                                        <option value="shipped">Enviado</option>
+                                                        <option value="delivered">Entregado</option>
+                                                        <option value="cancelled">Cancelado</option>
+                                                    </select>
                                                 </td>
-                                                <td className="px-6 py-4 text-secondary">{new Date(order.created_at).toLocaleDateString()}</td>
+                                                <td className="px-6 py-4 text-secondary text-xs">{new Date(order.created_at).toLocaleString()}</td>
+                                                <td className="px-6 py-4 text-right">
+                                                    <button className="text-primary hover:text-accent transition-colors p-2 rounded-full hover:bg-primary/5" title="Ver detalles">
+                                                        <span className="material-symbols-outlined text-lg">visibility</span>
+                                                    </button>
+                                                </td>
                                             </tr>
                                         ))}
                                     </tbody>
@@ -264,11 +297,74 @@ const AdminDashboard: React.FC = () => {
                                     <span className="material-symbols-outlined text-sm">{importing ? 'sync' : 'csv'}</span> {importing ? 'Importando...' : 'Recargar desde CSV'}
                                 </button>
                                 <button
-                                    onClick={() => { setShowProductForm(true); setEditingProduct(null); }}
+                                    onClick={() => {
+                                        setEditingProduct(null);
+                                        setProductFormData({ name: '', price: '', description: '', category: '', image: '', badges: [], rating: '5' });
+                                        setShowProductForm(true);
+                                    }}
                                     className="bg-primary text-white px-6 py-2.5 text-xs font-bold uppercase tracking-widest hover:bg-accent transition-all shadow-lg flex items-center gap-2"
                                 >
                                     <span className="material-symbols-outlined text-sm">add</span> Nuevo Producto
                                 </button>
+                            </div>
+                        </div>
+
+                        <div className="bg-white rounded-xl shadow-sm border border-background-contrast/10 overflow-hidden">
+                            <div className="overflow-x-auto">
+                                <table className="w-full text-left text-sm">
+                                    <thead className="bg-background/50 text-secondary uppercase text-[10px] font-bold tracking-widest">
+                                        <tr>
+                                            <th className="px-6 py-4">Producto</th>
+                                            <th className="px-6 py-4">Precio</th>
+                                            <th className="px-6 py-4">Precio</th>
+                                            <th className="px-6 py-4 text-right">Acciones</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-background-contrast/5">
+                                        {products.length === 0 ? (
+                                            <tr><td colSpan={4} className="text-center py-10">No hay productos</td></tr>
+                                        ) : products.map(product => (
+                                            <tr key={product.id} className="hover:bg-background-contrast/2 transition-colors">
+                                                <td className="px-6 py-4">
+                                                    <div className="flex items-center gap-4">
+                                                        <img src={product.image} alt="" className="w-10 h-10 object-cover rounded-md bg-background" />
+                                                        <div>
+                                                            <div className="font-bold text-foreground">{product.name}</div>
+                                                            <div className="text-[10px] text-secondary uppercase tracking-widest flex gap-1">
+                                                                {product.badges?.map((b: string) => <span key={b} className="bg-background px-1 rounded">{b}</span>)}
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </td>
+                                                <td className="px-6 py-4 font-bold">${product.price}</td>
+                                                <td className="px-6 py-4 text-right">
+                                                    <div className="flex justify-end gap-2">
+                                                        <button
+                                                            onClick={() => {
+                                                                setEditingProduct(product);
+                                                                setProductFormData({
+                                                                    name: product.name,
+                                                                    price: product.price.toString(),
+                                                                    description: product.description,
+                                                                    image: product.image,
+                                                                    badges: product.badges || [],
+                                                                    rating: (product.rating || 5).toString()
+                                                                });
+                                                                setShowProductForm(true);
+                                                            }}
+                                                            className="text-secondary hover:text-primary p-2 transition-colors"
+                                                        >
+                                                            <span className="material-symbols-outlined text-lg">edit</span>
+                                                        </button>
+                                                        <button onClick={() => deleteProduct(product.id)} className="text-secondary hover:text-red-500 p-2 transition-colors">
+                                                            <span className="material-symbols-outlined text-lg">delete</span>
+                                                        </button>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
                             </div>
                         </div>
 
@@ -285,139 +381,79 @@ const AdminDashboard: React.FC = () => {
                                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                             <div>
                                                 <label className="text-[10px] font-bold uppercase tracking-widest text-secondary block mb-2">Nombre</label>
-                                                <input required type="text" value={formData.name} onChange={e => setFormData({ ...formData, name: e.target.value })} className="w-full px-4 py-3 bg-background border-none text-sm focus:ring-2 focus:ring-primary/20 outline-none" />
+                                                <input required type="text" value={productFormData.name} onChange={e => setProductFormData({ ...productFormData, name: e.target.value })} className="w-full px-4 py-3 bg-background border-none text-sm focus:ring-2 focus:ring-primary/20 outline-none" />
                                             </div>
                                             <div>
                                                 <label className="text-[10px] font-bold uppercase tracking-widest text-secondary block mb-2">Precio (MXN)</label>
-                                                <input required type="number" step="0.01" value={formData.price} onChange={e => setFormData({ ...formData, price: e.target.value })} className="w-full px-4 py-3 bg-background border-none text-sm focus:ring-2 focus:ring-primary/20 outline-none" />
+                                                <input required type="number" step="0.01" value={productFormData.price} onChange={e => setProductFormData({ ...productFormData, price: e.target.value })} className="w-full px-4 py-3 bg-background border-none text-sm focus:ring-2 focus:ring-primary/20 outline-none" />
                                             </div>
                                         </div>
                                         <div>
                                             <label className="text-[10px] font-bold uppercase tracking-widest text-secondary block mb-2">Descripción</label>
-                                            <textarea required rows={3} value={formData.description} onChange={e => setFormData({ ...formData, description: e.target.value })} className="w-full px-4 py-3 bg-background border-none text-sm focus:ring-2 focus:ring-primary/20 outline-none resize-none" />
+                                            <textarea required rows={3} value={productFormData.description} onChange={e => setProductFormData({ ...productFormData, description: e.target.value })} className="w-full px-4 py-3 bg-background border-none text-sm focus:ring-2 focus:ring-primary/20 outline-none resize-none" />
                                         </div>
-                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                            <div>
-                                                <label className="text-[10px] font-bold uppercase tracking-widest text-secondary block mb-2">Categoría</label>
-                                                <input required type="text" value={formData.category} onChange={e => setFormData({ ...formData, category: e.target.value })} className="w-full px-4 py-3 bg-background border-none text-sm focus:ring-2 focus:ring-primary/20 outline-none" />
+
+                                        <div>
+                                            <label className="text-[10px] font-bold uppercase tracking-widest text-secondary block mb-4">Etiquetas (Badges)</label>
+                                            <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                                                {PRODUCT_LABELS.map(tag => (
+                                                    <label key={tag.value} className="flex items-center gap-3 p-3 bg-background rounded-lg cursor-pointer hover:bg-primary/5 transition-colors">
+                                                        <input
+                                                            type="checkbox"
+                                                            checked={productFormData.badges.includes(tag.value)}
+                                                            onChange={(e) => {
+                                                                const badges = e.target.checked
+                                                                    ? [...productFormData.badges, tag.value]
+                                                                    : productFormData.badges.filter(b => b !== tag.value);
+                                                                setProductFormData({ ...productFormData, badges });
+                                                            }}
+                                                            className="w-4 h-4 text-primary rounded border-none focus:ring-0 cursor-pointer"
+                                                        />
+                                                        <span className="text-[10px] font-bold uppercase tracking-tight">{tag.label}</span>
+                                                    </label>
+                                                ))}
                                             </div>
-                                            <div>
-                                                <label className="text-[10px] font-bold uppercase tracking-widest text-secondary block mb-2">Imagen del Producto</label>
-                                                <div
-                                                    onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
-                                                    onDragLeave={() => setIsDragging(false)}
-                                                    onDrop={onDrop}
-                                                    className={`relative border-2 border-dashed rounded-xl p-6 transition-all flex flex-col items-center justify-center gap-2 ${isDragging ? 'border-primary bg-primary/5' : 'border-background-contrast/20 bg-background/30'
-                                                        }`}
-                                                >
-                                                    {formData.image ? (
-                                                        <div className="relative w-full aspect-video rounded-lg overflow-hidden border shadow-inner">
-                                                            <img src={formData.image} alt="Preview" className="w-full h-full object-contain" />
-                                                            <button
-                                                                type="button"
-                                                                onClick={() => setFormData({ ...formData, image: '' })}
-                                                                className="absolute top-2 right-2 bg-white/80 p-1 rounded-full text-red-600 hover:bg-white shadow-sm"
-                                                            >
-                                                                <span className="material-symbols-outlined text-sm">close</span>
-                                                            </button>
-                                                        </div>
-                                                    ) : (
-                                                        <>
-                                                            <span className="material-symbols-outlined text-primary text-3xl mb-1">
-                                                                {uploading ? 'sync' : 'cloud_upload'}
-                                                            </span>
-                                                            <p className="text-[10px] text-secondary text-center uppercase font-bold">
-                                                                {uploading ? 'Subiendo...' : 'Suelta tu imagen aquí o haz click'}
-                                                            </p>
-                                                            <input
-                                                                type="file"
-                                                                className="absolute inset-0 opacity-0 cursor-pointer"
-                                                                accept="image/*"
-                                                                onChange={(e) => {
-                                                                    const file = e.target.files?.[0];
-                                                                    if (file) handleFileUpload(file);
-                                                                }}
-                                                            />
-                                                        </>
-                                                    )}
+                                        </div>
+
+                                        <div
+                                            onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
+                                            onDragLeave={() => setIsDragging(false)}
+                                            onDrop={handleDrop}
+                                            className={`border-2 border-dashed rounded-xl p-8 text-center transition-all ${isDragging ? 'border-primary bg-primary/5' : 'border-background-contrast/10'}`}
+                                        >
+                                            {productFormData.image ? (
+                                                <div className="relative inline-block group">
+                                                    <img src={productFormData.image} alt="Preview" className="w-32 h-32 object-cover rounded-lg shadow-md" />
+                                                    <button onClick={() => setProductFormData({ ...productFormData, image: '' })} className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 shadow-lg opacity-0 group-hover:opacity-100 transition-opacity">
+                                                        <span className="material-symbols-outlined text-sm">close</span>
+                                                    </button>
                                                 </div>
-                                                <input
-                                                    type="text"
-                                                    value={formData.image}
-                                                    onChange={e => setFormData({ ...formData, image: e.target.value })}
-                                                    className="w-full mt-2 px-4 py-2 bg-background border-none text-[10px] focus:ring-2 focus:ring-primary/20 outline-none"
-                                                    placeholder="O pega una URL aquí..."
-                                                />
-                                            </div>
+                                            ) : (
+                                                <div className="space-y-2">
+                                                    <span className="material-symbols-outlined text-4xl text-secondary">image</span>
+                                                    <p className="text-xs text-secondary">{uploading ? 'Subiendo...' : 'Arrastra una imagen o copia la URL'}</p>
+                                                    <input
+                                                        type="text"
+                                                        placeholder="URL de imagen"
+                                                        value={productFormData.image}
+                                                        onChange={e => setProductFormData({ ...productFormData, image: e.target.value })}
+                                                        className="mt-4 w-full px-4 py-2 bg-background border-none text-xs outline-none text-center"
+                                                    />
+                                                </div>
+                                            )}
                                         </div>
-                                        <button className="w-full bg-primary text-white py-4 font-bold uppercase tracking-widest text-xs hover:bg-accent transition-all shadow-xl">
-                                            {editingProduct ? 'Guardar Cambios' : 'Publicar Producto'}
-                                        </button>
+
+                                        <div className="flex gap-4 pt-4">
+                                            <button onClick={() => setShowProductForm(false)} type="button" className="flex-1 px-8 py-3 bg-background text-secondary text-xs font-bold uppercase tracking-widest hover:bg-background-contrast/5 transition-all">Cancelar</button>
+                                            <button type="submit" className="flex-1 px-8 py-3 bg-primary text-white text-xs font-bold uppercase tracking-widest hover:bg-accent transition-all shadow-lg">Guardar Producto</button>
+                                        </div>
                                     </form>
                                 </div>
                             </div>
                         )}
-
-                        <div className="bg-white rounded-xl shadow-sm border border-background-contrast/10 overflow-hidden">
-                            <div className="overflow-x-auto">
-                                <table className="w-full text-left text-sm">
-                                    <thead className="bg-background/50 text-secondary uppercase text-[10px] font-bold tracking-widest">
-                                        <tr>
-                                            <th className="px-6 py-4">Producto</th>
-                                            <th className="px-6 py-4">Categoría</th>
-                                            <th className="px-6 py-4">Precio</th>
-                                            <th className="px-6 py-4">Rating</th>
-                                            <th className="px-6 py-4 text-right">Acciones</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody className="divide-y divide-background-contrast/5">
-                                        {products.map(p => (
-                                            <tr key={p.id} className="hover:bg-background-contrast/5 transition-colors">
-                                                <td className="px-6 py-4">
-                                                    <div className="flex items-center gap-4">
-                                                        <img src={p.image} alt={p.name} className="w-10 h-10 object-cover rounded shadow-sm" />
-                                                        <span className="font-bold text-foreground">{p.name}</span>
-                                                    </div>
-                                                </td>
-                                                <td className="px-6 py-4 text-secondary">{p.category}</td>
-                                                <td className="px-6 py-4 font-bold text-primary">${p.price}</td>
-                                                <td className="px-6 py-4 text-accent">★ {p.rating}</td>
-                                                <td className="px-6 py-4 text-right">
-                                                    <div className="flex justify-end gap-2">
-                                                        <button
-                                                            onClick={() => {
-                                                                setEditingProduct(p);
-                                                                setFormData({
-                                                                    name: p.name,
-                                                                    price: p.price.toString(),
-                                                                    description: p.description,
-                                                                    category: p.category,
-                                                                    image: p.image,
-                                                                    badges: (p.badges || []).join(', '),
-                                                                    rating: p.rating.toString()
-                                                                });
-                                                                setShowProductForm(true);
-                                                            }}
-                                                            className="p-2 text-secondary hover:text-primary transition-colors"
-                                                        >
-                                                            <span className="material-symbols-outlined text-sm">edit</span>
-                                                        </button>
-                                                        <button
-                                                            onClick={() => deleteProduct(p.id)}
-                                                            className="p-2 text-secondary hover:text-red-600 transition-colors"
-                                                        >
-                                                            <span className="material-symbols-outlined text-sm">delete</span>
-                                                        </button>
-                                                    </div>
-                                                </td>
-                                            </tr>
-                                        ))}
-                                    </tbody>
-                                </table>
-                            </div>
-                        </div>
                     </>
                 )}
+
             </div>
         </div>
     );

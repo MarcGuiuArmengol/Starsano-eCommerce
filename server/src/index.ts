@@ -50,21 +50,38 @@ const authenticateToken = (req: Request, res: Response, next: any) => {
     const authHeader = req.headers['authorization'];
     const token = authHeader && authHeader.split(' ')[1];
 
-    if (!token) return res.status(401).json({ message: 'Missing token' });
+    if (!token) {
+        console.log('[AUTH] Missing token');
+        return res.status(401).json({ message: 'Missing token' });
+    }
 
     const user = verifyToken(token);
-    if (!user) return res.status(403).json({ message: 'Invalid token' });
+    if (!user) {
+        console.log('[AUTH] Invalid/expired token');
+        return res.status(403).json({ message: 'Invalid token' });
+    }
 
+    console.log(`[AUTH] User authenticated: ${user.userId} (Role: ${user.role})`);
     (req as any).user = user;
     next();
 };
 
 const isAdmin = (req: Request, res: Response, next: any) => {
-    if ((req as any).user?.role !== 'admin') {
+    const user = (req as any).user;
+    if (user?.role !== 'admin') {
+        console.log(`[AUTH] Access denied for user ${user?.userId}. Role is ${user?.role}, expected admin.`);
         return res.status(403).json({ message: 'Admin access required' });
     }
+    console.log(`[AUTH] Admin access granted for user ${user.userId}`);
     next();
 };
+
+app.get('/api/debug-auth', authenticateToken, (req: Request, res: Response) => {
+    res.json({
+        user: (req as any).user,
+        message: 'Auth debug info'
+    });
+});
 
 app.get('/', (req: Request, res: Response) => {
     res.send('Starsano API Running');
@@ -86,12 +103,25 @@ app.get('/health', async (req: Request, res: Response) => {
 // GET /api/products
 app.get('/api/products', async (req: Request, res: Response) => {
     try {
-        const result = await pool.query('SELECT * FROM products ORDER BY id DESC');
-        // Convert price to number if it comes as string from postgres
+        const result = await pool.query(`
+            SELECT p.*, c.name as category_name, c.slug as category_slug,
+            COALESCE(
+                (SELECT json_agg(json_build_object('id', a.id, 'name', a.name, 'icon_url', a.icon_url))
+                 FROM attributes a
+                 JOIN product_attributes pa ON a.id = pa.attribute_id
+                 WHERE pa.product_id = p.id),
+                '[]'
+            ) as dynamic_attributes
+            FROM products p
+            LEFT JOIN categories c ON p.category_id = c.id
+            ORDER BY p.id DESC
+        `);
+
         const products = result.rows.map((row: any) => ({
             ...row,
             price: Number(row.price),
-            rating: Number(row.rating)
+            rating: Number(row.rating),
+            badges: row.badges || []
         }));
         res.json(products);
     } catch (err: any) {
@@ -104,7 +134,19 @@ app.get('/api/products', async (req: Request, res: Response) => {
 app.get('/api/products/:id', async (req: Request, res: Response) => {
     try {
         const { id } = req.params;
-        const result = await pool.query('SELECT * FROM products WHERE id = $1', [id]);
+        const result = await pool.query(`
+            SELECT p.*, c.name as category_name, c.slug as category_slug,
+            COALESCE(
+                (SELECT json_agg(json_build_object('id', a.id, 'name', a.name, 'icon_url', a.icon_url))
+                 FROM attributes a
+                 JOIN product_attributes pa ON a.id = pa.attribute_id
+                 WHERE pa.product_id = p.id),
+                '[]'
+            ) as dynamic_attributes
+            FROM products p
+            LEFT JOIN categories c ON p.category_id = c.id
+            WHERE p.id = $1
+        `, [id]);
 
         if (result.rows.length === 0) {
             return res.status(404).json({ message: 'Product not found' });
@@ -113,7 +155,8 @@ app.get('/api/products/:id', async (req: Request, res: Response) => {
         const product = {
             ...result.rows[0],
             price: Number(result.rows[0].price),
-            rating: Number(result.rows[0].rating)
+            rating: Number(result.rows[0].rating),
+            badges: result.rows[0].badges || []
         };
         res.json(product);
     } catch (err: any) {
@@ -358,7 +401,7 @@ app.get('/api/orders/:id', authenticateToken, async (req: Request, res: Response
     }
 });
 
-// ADMIN ROUTES (GET ALL ORDERS)
+// ADMIN ROUTES (ORDERS)
 app.get('/api/admin/orders', authenticateToken, isAdmin, async (req: Request, res: Response) => {
     try {
         const result = await pool.query(
@@ -371,6 +414,22 @@ app.get('/api/admin/orders', authenticateToken, isAdmin, async (req: Request, re
     }
 });
 
+app.patch('/api/admin/orders/:id/status', authenticateToken, isAdmin, async (req: Request, res: Response) => {
+    const { id } = req.params;
+    const { status } = req.body;
+    try {
+        const result = await pool.query(
+            'UPDATE orders SET status = $1 WHERE id = $2 RETURNING *',
+            [status, id]
+        );
+        if (result.rows.length === 0) return res.status(404).json({ message: 'Order not found' });
+        res.json(result.rows[0]);
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ message: 'Error updating order status' });
+    }
+});
+
 // ADMIN PRODUCT CRUD
 app.post('/api/admin/products', authenticateToken, isAdmin, async (req: Request, res: Response) => {
     const { name, price, description, image, category, badges, rating } = req.body;
@@ -378,7 +437,7 @@ app.post('/api/admin/products', authenticateToken, isAdmin, async (req: Request,
         const result = await pool.query(
             `INSERT INTO products (name, price, description, image, category, badges, rating)
              VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`,
-            [name, price, description, image, category, badges || [], rating || 0]
+            [name, price, description, image, category || '', badges || [], rating || 0]
         );
         res.status(201).json(result.rows[0]);
     } catch (err) {
@@ -394,9 +453,13 @@ app.put('/api/admin/products/:id', authenticateToken, isAdmin, async (req: Reque
         const result = await pool.query(
             `UPDATE products SET name=$1, price=$2, description=$3, image=$4, category=$5, badges=$6, rating=$7
              WHERE id=$8 RETURNING *`,
-            [name, price, description, image, category, badges, rating, id]
+            [name, price, description, image, category || '', badges || [], rating || 0, id]
         );
-        if (result.rows.length === 0) return res.status(404).json({ message: 'Product not found' });
+
+        if (result.rows.length === 0) {
+            return res.status(404).json({ message: 'Product not found' });
+        }
+
         res.json(result.rows[0]);
     } catch (err) {
         console.error(err);
@@ -424,6 +487,110 @@ app.post('/api/admin/upload', authenticateToken, isAdmin, upload.single('image')
     }
     const imageUrl = `${req.protocol}://${req.get('host')}/uploads/${file.filename}`;
     res.json({ imageUrl });
+});
+
+// ADMIN CATEGORY CRUD
+app.get('/api/categories', async (req: Request, res: Response) => {
+    try {
+        const result = await pool.query('SELECT * FROM categories ORDER BY name ASC');
+        res.json(result.rows);
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ message: 'Error fetching categories' });
+    }
+});
+
+app.post('/api/admin/categories', authenticateToken, isAdmin, async (req: Request, res: Response) => {
+    const { name, slug, image_url } = req.body;
+    try {
+        const result = await pool.query(
+            'INSERT INTO categories (name, slug, image_url) VALUES ($1, $2, $3) RETURNING *',
+            [name, slug, image_url]
+        );
+        res.status(201).json(result.rows[0]);
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ message: 'Error creating category' });
+    }
+});
+
+app.put('/api/admin/categories/:id', authenticateToken, isAdmin, async (req: Request, res: Response) => {
+    const { id } = req.params;
+    const { name, slug, image_url } = req.body;
+    try {
+        const result = await pool.query(
+            'UPDATE categories SET name=$1, slug=$2, image_url=$3 WHERE id=$4 RETURNING *',
+            [name, slug, image_url, id]
+        );
+        if (result.rows.length === 0) return res.status(404).json({ message: 'Category not found' });
+        res.json(result.rows[0]);
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ message: 'Error updating category' });
+    }
+});
+
+app.delete('/api/admin/categories/:id', authenticateToken, isAdmin, async (req: Request, res: Response) => {
+    const { id } = req.params;
+    try {
+        await pool.query('DELETE FROM categories WHERE id = $1', [id]);
+        res.json({ message: 'Category deleted' });
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ message: 'Error deleting category' });
+    }
+});
+
+// ADMIN ATTRIBUTE CRUD
+app.get('/api/attributes', async (req: Request, res: Response) => {
+    try {
+        const result = await pool.query('SELECT * FROM attributes ORDER BY name ASC');
+        res.json(result.rows);
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ message: 'Error fetching attributes' });
+    }
+});
+
+app.post('/api/admin/attributes', authenticateToken, isAdmin, async (req: Request, res: Response) => {
+    const { name, icon_url } = req.body;
+    try {
+        const result = await pool.query(
+            'INSERT INTO attributes (name, icon_url) VALUES ($1, $2) RETURNING *',
+            [name, icon_url]
+        );
+        res.status(201).json(result.rows[0]);
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ message: 'Error creating attribute' });
+    }
+});
+
+app.put('/api/admin/attributes/:id', authenticateToken, isAdmin, async (req: Request, res: Response) => {
+    const { id } = req.params;
+    const { name, icon_url } = req.body;
+    try {
+        const result = await pool.query(
+            'UPDATE attributes SET name=$1, icon_url=$2 WHERE id=$3 RETURNING *',
+            [name, icon_url, id]
+        );
+        if (result.rows.length === 0) return res.status(404).json({ message: 'Attribute not found' });
+        res.json(result.rows[0]);
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ message: 'Error updating attribute' });
+    }
+});
+
+app.delete('/api/admin/attributes/:id', authenticateToken, isAdmin, async (req: Request, res: Response) => {
+    const { id } = req.params;
+    try {
+        await pool.query('DELETE FROM attributes WHERE id = $1', [id]);
+        res.json({ message: 'Attribute deleted' });
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ message: 'Error deleting attribute' });
+    }
 });
 
 // ADMIN MANUAL IMPORT
@@ -455,7 +622,6 @@ async function waitForDB(retries = 15, delay = 2000) {
 
 // Auto-import products from CSV on startup
 async function autoImportProducts() {
-    // Note: We now wait for DB in the main app.listen loop
     const csvPath = path.join(process.cwd(), 'products_template.csv');
     if (!fs.existsSync(csvPath)) {
         console.log('No products_template.csv found, skipping auto-import.');
@@ -475,60 +641,108 @@ async function autoImportProducts() {
 
         const client = await pool.connect();
         try {
-            // Ensure UNIQUE constraint exists for 'name'
-            // If it fails, maybe there are already duplicates, we handle that by logging
-            try {
-                await client.query(`
-                    DO $$ 
-                    BEGIN 
-                        IF NOT EXISTS (
-                            SELECT 1 FROM pg_constraint WHERE conname = 'products_name_key'
-                        ) THEN 
-                            ALTER TABLE products ADD CONSTRAINT products_name_key UNIQUE (name);
-                        END IF;
-                    END $$;
-                `);
-            } catch (constrErr: any) {
-                console.warn('⚠️ Warning: Could not ensure UNIQUE constraint on name:', constrErr.message);
-                console.log('This usually happens if there are already duplicate names in the DB.');
+            await client.query('BEGIN');
+
+            // 1. Process Categories
+            const uniqueCategories = Array.from(new Set(records.map((r: any) => r.category).filter(Boolean)));
+            const categoryMap = new Map();
+
+            for (const catName of uniqueCategories) {
+                const slug = (catName as string).toLowerCase().replace(/\s+/g, '-').replace(/[^\w-]/g, '');
+                const catResult = await client.query(
+                    `INSERT INTO categories (name, slug) VALUES ($1, $2)
+                     ON CONFLICT (slug) DO UPDATE SET name = EXCLUDED.name
+                     RETURNING id`,
+                    [catName, slug]
+                );
+                categoryMap.set(catName, catResult.rows[0].id);
             }
 
-            await client.query('BEGIN');
+            // 2. Process Attributes (Badges)
+            const allBadges = new Set<string>();
+            records.forEach((r: any) => {
+                if (!r.badges) return;
+                let badgesArr = [];
+                try {
+                    badgesArr = (typeof r.badges === 'string' && r.badges.trim().startsWith('['))
+                        ? JSON.parse(r.badges)
+                        : r.badges.split(',').map((s: string) => s.trim());
+                } catch (e) {
+                    badgesArr = r.badges.split(',').map((s: string) => s.trim());
+                }
+                badgesArr.forEach((b: string) => { if (b) allBadges.add(b); });
+            });
+
+            const attributeMap = new Map();
+            for (const attrName of Array.from(allBadges)) {
+                const attrResult = await client.query(
+                    `INSERT INTO attributes (name) VALUES ($1)
+                     ON CONFLICT (name) DO NOTHING
+                     RETURNING id`,
+                    [attrName]
+                );
+
+                if (attrResult.rows.length > 0) {
+                    attributeMap.set(attrName, attrResult.rows[0].id);
+                } else {
+                    const existing = await client.query('SELECT id FROM attributes WHERE name = $1', [attrName]);
+                    attributeMap.set(attrName, existing.rows[0].id);
+                }
+            }
+
+            // 3. Process Products
             for (const record of records) {
                 if (!record.name || !record.price) continue;
 
-                // Parse badges if they are JSON strings
-                let badges = [];
-                try {
-                    const b = record.badges || '[]';
-                    badges = (typeof b === 'string' && b.trim().startsWith('['))
-                        ? JSON.parse(b)
-                        : (b ? b.split(',').map((s: string) => s.trim()) : []);
-                } catch (e) {
-                    badges = record.badges ? record.badges.split(',').map((s: string) => s.trim()) : [];
-                }
+                const categoryId = categoryMap.get(record.category) || null;
 
-                await client.query(
-                    `INSERT INTO products (name, price, description, image, category, badges, rating)
+                const productResult = await client.query(
+                    `INSERT INTO products (name, price, description, image, category, category_id, rating)
                      VALUES ($1, $2, $3, $4, $5, $6, $7)
                      ON CONFLICT (name) DO UPDATE SET
                         price = EXCLUDED.price,
                         description = EXCLUDED.description,
                         image = EXCLUDED.image,
                         category = EXCLUDED.category,
-                        badges = EXCLUDED.badges,
-                        rating = EXCLUDED.rating`,
+                        category_id = EXCLUDED.category_id,
+                        rating = EXCLUDED.rating
+                     RETURNING id`,
                     [
                         record.name,
                         parseFloat(record.price) || 0,
                         record.description || '',
                         record.image || '',
                         record.category || '',
-                        badges,
+                        categoryId,
                         parseFloat(record.rating) || 0
                     ]
                 );
+
+                const productId = productResult.rows[0].id;
+
+                // Sync Attributes
+                let productBadges = [];
+                try {
+                    productBadges = (typeof record.badges === 'string' && record.badges.trim().startsWith('['))
+                        ? JSON.parse(record.badges)
+                        : (record.badges ? record.badges.split(',').map((s: string) => s.trim()) : []);
+                } catch (e) {
+                    productBadges = record.badges ? record.badges.split(',').map((s: string) => s.trim()) : [];
+                }
+
+                await client.query('DELETE FROM product_attributes WHERE product_id = $1', [productId]);
+                for (const badge of productBadges) {
+                    if (!badge) continue;
+                    const attrId = attributeMap.get(badge);
+                    if (attrId) {
+                        await client.query(
+                            'INSERT INTO product_attributes (product_id, attribute_id) VALUES ($1, $2) ON CONFLICT DO NOTHING',
+                            [productId, attrId]
+                        );
+                    }
+                }
             }
+
             await client.query('COMMIT');
             console.log(`✅ Auto-import successful: ${records.length} records processed.`);
         } catch (err: any) {

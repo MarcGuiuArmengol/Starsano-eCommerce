@@ -1,13 +1,35 @@
+CREATE TABLE IF NOT EXISTS categories (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(255) NOT NULL,
+    slug VARCHAR(255) UNIQUE NOT NULL,
+    image_url TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS attributes (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(255) UNIQUE NOT NULL,
+    icon_url TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
 CREATE TABLE IF NOT EXISTS products (
     id SERIAL PRIMARY KEY,
     name VARCHAR(255) UNIQUE NOT NULL,
     description TEXT,
     price DECIMAL(10, 2) NOT NULL,
     image TEXT,
-    category VARCHAR(100),
-    badges TEXT[],
+    category VARCHAR(100), -- Keeping for temporary backward compatibility
+    category_id INTEGER REFERENCES categories(id),
+    badges TEXT[], -- Keeping for temporary backward compatibility
     rating DECIMAL(2, 1),
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS product_attributes (
+    product_id INTEGER REFERENCES products(id) ON DELETE CASCADE,
+    attribute_id INTEGER REFERENCES attributes(id) ON DELETE CASCADE,
+    PRIMARY KEY (product_id, attribute_id)
 );
 
 CREATE TABLE IF NOT EXISTS articles (

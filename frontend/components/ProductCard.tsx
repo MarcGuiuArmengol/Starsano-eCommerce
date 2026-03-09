@@ -21,19 +21,25 @@ const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
   const { addToCart } = useCart();
 
   const attributeIcons: Record<string, string> = {
-    'Organic': organicoIcon,
-    'Sugar Free': sinAzucarIcon,
-    'Gluten Free': sinGlutenIcon,
-    'Keto': ketoIcon,
-    'Vegan': veganoIcon,
-    'Natural': naturalIcon,
-    'Integral': integralIcon
+    'organic': organicoIcon,
+    'sugar-free': sinAzucarIcon,
+    'gluten-free': sinGlutenIcon,
+    'keto': ketoIcon,
+    'vegan': veganoIcon,
+    'natural': naturalIcon,
+    'integral': integralIcon
   };
 
   const handleAddToCart = (e: React.MouseEvent) => {
     e.preventDefault();
     addToCart(product);
   };
+
+  // Display both legacy badges and new dynamic attributes
+  const displayAttributes = (product.badges || []).map(b => ({
+    name: b,
+    icon: attributeIcons[b]
+  })).filter(attr => attr.icon);
 
   return (
     <Link to={`/product/${product.id}`} className="group flex flex-col h-full bg-white hover:shadow-lg transition-shadow duration-300 rounded-sm">
@@ -45,31 +51,18 @@ const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
           loading="lazy"
         />
         <div className="absolute top-2 left-2 flex flex-col gap-1">
-          {product.badges?.map((badge) => (
-            <Badge key={badge} text={badge} />
-          ))}
         </div>
 
         {/* Attribute Icons Overlay */}
         <div className="absolute top-2 right-2 flex flex-col gap-2">
-          {/* Always show Natural icon for testing */}
-          <div className="flex flex-col items-center group">
-            <div className="w-10 h-10 rounded-full bg-white/95 backdrop-blur shadow-md flex items-center justify-center p-1.5 hover:scale-110 transition-transform border border-primary/10" title="Natural">
-              <img src={attributeIcons['Natural']} alt="Natural" className="w-full h-full object-contain" />
-            </div>
-            <span className="text-[8px] font-bold uppercase tracking-tight text-secondary bg-white/80 px-1 rounded mt-0.5 opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
-              Natural
-            </span>
-          </div>
-
-          {product.badges?.filter(badge => badge !== 'Natural').map((badge) => (
-            attributeIcons[badge] && (
-              <div key={badge} className="flex flex-col items-center group">
-                <div className="w-10 h-10 rounded-full bg-white/95 backdrop-blur shadow-md flex items-center justify-center p-1.5 hover:scale-110 transition-transform border border-primary/10" title={badge}>
-                  <img src={attributeIcons[badge]} alt={badge} className="w-full h-full object-contain" />
+          {displayAttributes.map((attr, idx) => (
+            attr.icon && (
+              <div key={idx} className="flex flex-col items-center group/attr">
+                <div className="w-10 h-10 rounded-full bg-white/95 backdrop-blur shadow-md flex items-center justify-center p-1.5 hover:scale-110 transition-transform border border-primary/10" title={attr.name}>
+                  <img src={attr.icon} alt={attr.name} className="w-full h-full object-contain" />
                 </div>
-                <span className="text-[8px] font-bold uppercase tracking-tight text-secondary bg-white/80 px-1 rounded mt-0.5 opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
-                  {badge}
+                <span className="text-[8px] font-bold uppercase tracking-tight text-secondary bg-white/80 px-1 rounded mt-0.5 opacity-0 group-hover/attr:opacity-100 transition-opacity whitespace-nowrap">
+                  {attr.name}
                 </span>
               </div>
             )

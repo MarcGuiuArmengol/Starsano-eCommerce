@@ -49,6 +49,7 @@ memory_store = MemoryStore("data/chatbot.db")
 class ChatRequest(BaseModel):
     message: str
     session_id: str
+    email: Optional[str] = None
 
 class ChatResponse(BaseModel):
     response: str
@@ -124,7 +125,7 @@ def send_alert_email(user_id: str, message_text: str) -> bool:
         print(f"Error enviando email de alerta: {e}")
         return False
 
-def process_logic(user_id: str, message_text: str) -> Dict[str, Any]:
+def process_logic(user_id: str, message_text: str, email: Optional[str] = None) -> Dict[str, Any]:
     thread_id = memory_store.get_or_create_thread(user_id)
     memory_store.append_message(thread_id, "user", message_text)
     summary, slots = memory_store.load_thread_state(thread_id)
@@ -132,7 +133,7 @@ def process_logic(user_id: str, message_text: str) -> Dict[str, Any]:
     intention = classify_intention(message_text, context=summary)
     print(f"[CLASSIFIED] User {user_id}: intention = {intention}")
     
-    result = route_message(intention, message_text, user_id, thread_id, slots)
+    result = route_message(intention, message_text, user_id, thread_id, slots, email)
     response_text = result.get("response_text") if isinstance(result, dict) else "Lo siento, tuve un problema procesando tu mensaje."
     notify_email = result.get("notify_email") if isinstance(result, dict) else False
 
@@ -188,7 +189,7 @@ async def chat_web(request: ChatRequest):
     """
     Endpoint for the web frontend chat widget.
     """
-    res = process_logic(request.session_id, request.message)
+    res = process_logic(request.session_id, request.message, request.email)
     return ChatResponse(response=res["response_text"], session_id=request.session_id)
 
 @app.get("/health")

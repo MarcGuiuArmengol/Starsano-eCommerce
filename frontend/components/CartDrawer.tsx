@@ -1,9 +1,52 @@
 import React from 'react';
 import { useCart } from '../context/CartContext';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
+import { useUser } from '../context/UserContext';
+import { api } from '../services/api';
+import { useState } from 'react';
 
 const CartDrawer: React.FC = () => {
-  const { items, isCartOpen, setIsCartOpen, removeFromCart, updateQuantity, cartTotal } = useCart();
+  const { items, isCartOpen, setIsCartOpen, removeFromCart, updateQuantity, cartTotal, clearCart } = useCart();
+  const { user, token } = useUser();
+  const navigate = useNavigate();
+  const [isProcessing, setIsProcessing] = useState(false);
+
+  const handleDirectCheckout = async () => {
+    if (!user || !token) {
+      alert('Por favor, inicia sesión para realizar un pedido.');
+      setIsCartOpen(false);
+      navigate('/login');
+      return;
+    }
+
+    if (items.length === 0) return;
+
+    setIsProcessing(true);
+    try {
+      const orderData = {
+        items: items,
+        total: cartTotal,
+        shipping_details: {
+          firstName: 'Prueba',
+          lastName: 'Directa',
+          address: 'Dirección de prueba',
+          city: 'Ciudad de prueba',
+          zip: '00000'
+        }
+      };
+
+      await api.createOrder(orderData, token);
+
+      alert('¡Pedido realizado con éxito directamente!');
+      clearCart();
+      setIsCartOpen(false);
+    } catch (err: any) {
+      console.error('Error in direct checkout:', err);
+      alert('Error al procesar el pedido: ' + err.message);
+    } finally {
+      setIsProcessing(false);
+    }
+  };
 
   if (!isCartOpen) return null;
 
@@ -118,13 +161,13 @@ const CartDrawer: React.FC = () => {
                     </div>
                     <p className="mt-0.5 text-sm text-slate-500">Envío e impuestos calculados en el checkout.</p>
                     <div className="mt-6">
-                      <Link
-                        to="/checkout"
-                        onClick={() => setIsCartOpen(false)}
-                        className="flex items-center justify-center rounded-xl border border-transparent bg-primary px-6 py-3 text-base font-medium text-white shadow-sm hover:bg-primary-dark transition-colors"
+                      <button
+                        onClick={handleDirectCheckout}
+                        disabled={isProcessing}
+                        className="w-full flex items-center justify-center rounded-xl border border-transparent bg-primary px-6 py-3 text-base font-medium text-white shadow-sm hover:bg-primary-dark transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                       >
-                        Pagar ahora
-                      </Link>
+                        {isProcessing ? 'Procesando...' : 'Pagar ahora'}
+                      </button>
                     </div>
                     <div className="mt-6 flex justify-center text-center text-sm text-slate-500">
                       <p>

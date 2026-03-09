@@ -22,13 +22,13 @@ const ProductDetail: React.FC = () => {
     const [activeTab, setActiveTab] = useState('description');
 
     const attributeIcons: Record<string, string> = {
-        'Organic': organicoIcon,
-        'Sugar Free': sinAzucarIcon,
-        'Gluten Free': sinGlutenIcon,
-        'Keto': ketoIcon,
-        'Vegan': veganoIcon,
-        'Natural': naturalIcon,
-        'Integral': integralIcon
+        'organic': organicoIcon,
+        'sugar-free': sinAzucarIcon,
+        'gluten-free': sinGlutenIcon,
+        'keto': ketoIcon,
+        'vegan': veganoIcon,
+        'natural': naturalIcon,
+        'integral': integralIcon
     };
 
     React.useEffect(() => {
@@ -92,24 +92,14 @@ const ProductDetail: React.FC = () => {
                     {/* Info */}
                     <div className="pt-4">
                         <div className="mb-6 flex gap-2">
-                            {product.badges?.map(b => <Badge key={b} text={b} />)}
+                            {product.badges?.map((b: string) => <Badge key={b} text={b} />)}
                         </div>
 
                         <h1 className="text-4xl md:text-5xl text-foreground mb-4 leading-tight">{product.name}</h1>
 
                         {/* Attribute Icons */}
                         <div className="flex flex-wrap gap-6 mb-10">
-                            {/* Always show Natural icon for testing */}
-                            <div className="flex flex-col items-center gap-1.5 group">
-                                <div className="w-16 h-16 rounded-full bg-white shadow-md flex items-center justify-center p-3 hover:shadow-lg transition-all border-2 border-primary/5 group-hover:border-primary/20">
-                                    <img src={attributeIcons['Natural']} alt="Natural" className="w-full h-full object-contain" />
-                                </div>
-                                <span className="text-[10px] font-black uppercase tracking-widest text-secondary transition-colors group-hover:text-primary">
-                                    Natural
-                                </span>
-                            </div>
-
-                            {product.badges?.filter((b: string) => b !== 'Natural').map((badge: string) => (
+                            {product.badges?.map((badge: string) => (
                                 attributeIcons[badge] && (
                                     <div key={badge} className="flex flex-col items-center gap-1.5 group">
                                         <div className="w-16 h-16 rounded-full bg-white shadow-md flex items-center justify-center p-3 hover:shadow-lg transition-all border-2 border-primary/5 group-hover:border-primary/20">

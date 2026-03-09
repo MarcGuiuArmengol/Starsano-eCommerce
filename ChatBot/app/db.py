@@ -91,6 +91,25 @@ class StoreDB:
                 return cur.fetchone()
         finally:
             conn.close()
+    def get_latest_orders_by_email(self, email: str, limit: int = 3) -> List[Dict[str, Any]]:
+        """
+        Busca los últimos pedidos de un usuario por su email.
+        """
+        conn = self._get_connection()
+        try:
+            with conn.cursor() as cur:
+                cur.execute("SELECT id FROM users WHERE email = %s", (email,))
+                user = cur.fetchone()
+                if not user:
+                    return []
+                
+                cur.execute(
+                    "SELECT id, total, status, created_at FROM orders WHERE user_id = %s ORDER BY created_at DESC LIMIT %s",
+                    (user['id'], limit)
+                )
+                return cur.fetchall()
+        finally:
+            conn.close()
 
 # Singleton instance
 db_client = StoreDB()

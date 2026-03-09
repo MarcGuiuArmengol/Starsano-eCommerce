@@ -1,15 +1,18 @@
 import React, { useState } from 'react';
 import { useCart } from '../context/CartContext';
 import { Link, useNavigate } from 'react-router-dom';
+import { useUser } from '../context/UserContext';
+import { api } from '../services/api';
 
 const Checkout: React.FC = () => {
     const { cart, cartTotal, clearCart } = useCart();
     const navigate = useNavigate();
+    const { user, token } = useUser();
     const [loading, setLoading] = useState(false);
 
     // Mock form state
     const [formData, setFormData] = useState({
-        email: '',
+        email: user?.email || '',
         firstName: '',
         lastName: '',
         address: '',
@@ -26,16 +29,39 @@ const Checkout: React.FC = () => {
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
+
+        if (!user || !token) {
+            alert('Por favor, inicia sesión para realizar un pedido.');
+            navigate('/login');
+            return;
+        }
+
         setLoading(true);
 
-        // Simulate API call
-        await new Promise(resolve => setTimeout(resolve, 2000));
+        try {
+            const orderData = {
+                items: cart,
+                total: cartTotal,
+                shipping_details: {
+                    firstName: formData.firstName,
+                    lastName: formData.lastName,
+                    address: formData.address,
+                    city: formData.city,
+                    zip: formData.zip
+                }
+            };
 
-        clearCart();
-        setLoading(false);
-        navigate('/thank-you'); // We'll need this page too or just alert
-        alert('¡Pedido realizado con éxito! (Simulación)');
-        navigate('/');
+            await api.createOrder(orderData, token);
+
+            clearCart();
+            alert('¡Pedido realizado con éxito!');
+            navigate('/');
+        } catch (err: any) {
+            console.error('Error creating order:', err);
+            alert('Error al realizar el pedido: ' + err.message);
+        } finally {
+            setLoading(false);
+        }
     };
 
     if (cart.length === 0) {
@@ -90,10 +116,10 @@ const Checkout: React.FC = () => {
                                 <div className="flex items-center gap-2 mb-4 text-xs text-secondary">
                                     <span className="material-symbols-outlined">lock</span> Encriptación SSL de 256-bits
                                 </div>
-                                <input type="text" name="card" placeholder="Número de tarjeta" className="w-full bg-white border border-background-contrast/50 p-3 rounded-none focus:border-primary focus:ring-0" required onChange={handleChange} />
+                                <input type="text" name="card" placeholder="Número de tarjeta (Opcional Prueba)" className="w-full bg-white border border-background-contrast/50 p-3 rounded-none focus:border-primary focus:ring-0" onChange={handleChange} />
                                 <div className="grid grid-cols-2 gap-4">
-                                    <input type="text" name="expiry" placeholder="MM/YY" className="w-full bg-white border border-background-contrast/50 p-3 rounded-none focus:border-primary focus:ring-0" required onChange={handleChange} />
-                                    <input type="text" name="cvc" placeholder="CVC" className="w-full bg-white border border-background-contrast/50 p-3 rounded-none focus:border-primary focus:ring-0" required onChange={handleChange} />
+                                    <input type="text" name="expiry" placeholder="MM/YY" className="w-full bg-white border border-background-contrast/50 p-3 rounded-none focus:border-primary focus:ring-0" onChange={handleChange} />
+                                    <input type="text" name="cvc" placeholder="CVC" className="w-full bg-white border border-background-contrast/50 p-3 rounded-none focus:border-primary focus:ring-0" onChange={handleChange} />
                                 </div>
                             </div>
                         </div>

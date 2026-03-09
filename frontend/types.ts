@@ -1,11 +1,11 @@
 export interface Product {
-  id: string;
+  id: string | number;
   name: string;
   price: number;
   description: string;
   image: string;
   category: string;
-  badges?: string[];
+  badges: string[];
   rating?: number;
 }
 
@@ -14,9 +14,10 @@ export interface CartItem extends Product {
 }
 
 export interface Category {
-  id: string;
+  id: string | number;
   name: string;
-  image: string;
+  image_url?: string;
+  image?: string; // fallback
   slug: string;
 }
 

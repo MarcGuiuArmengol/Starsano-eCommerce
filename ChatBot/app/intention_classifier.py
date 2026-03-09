@@ -1,6 +1,6 @@
 import os
 import json
-from typing import Literal, Dict, Any, List
+from typing import Literal, Dict, Any, List, Optional
 from langchain_openai import ChatOpenAI
 from langchain.prompts import PromptTemplate
 from dotenv import load_dotenv
@@ -144,6 +144,8 @@ Context: {context}
 Response (Conversational & Natural Spanish):"""
 
 ORDER_INFO_PROMPT = """Extrae el ID del pedido y el EMAIL del usuario del siguiente mensaje.
+Si el usuario dice "mi pedido es el 123", el ID es 123.
+Si no proporciona el email en este mensaje, búscalo contextualmente.
 Responde SOLO en formato JSON: {{"order_id": "valor", "email": "valor"}}.
 Si no encuentras alguno, pon null.
 
@@ -230,7 +232,7 @@ def generate_need_human_response(user_message: str, previous_messages: str = "")
     except Exception as e:
         return "Lamento lo ocurrido. Un asesor te contactará pronto al +52 56 3082 0401."
 
-def handle_product_search(message: str, user_id: str, thread_id: str, slots: Dict[str, Any]) -> dict:
+def handle_product_search(message: str, user_id: str, thread_id: str, slots: Dict[str, Any], session_email: Optional[str] = None) -> dict:
     # 1. Búsqueda semántica (RAG)
     print(f"[SEARCH] Iniciando búsqueda semántica para: {message}")
     products = vector_store.semantic_search(message)
@@ -245,53 +247,92 @@ def handle_product_search(message: str, user_id: str, thread_id: str, slots: Dic
     response_text = generate_product_search_response(message, products)
     return {"status": "handled", "intention": "product_search", "response_text": response_text}
 
-def handle_general_question(message: str, user_id: str, thread_id: str, slots: Dict[str, Any]) -> dict:
+def handle_general_question(message: str, user_id: str, thread_id: str, slots: Dict[str, Any], session_email: Optional[str] = None) -> dict:
     response_text = generate_general_question_response(message)
     return {"status": "handled", "intention": "general_question", "response_text": response_text}
 
-def handle_need_human(message: str, user_id: str, thread_id: str, slots: Dict[str, Any]) -> dict:
+def handle_need_human(message: str, user_id: str, thread_id: str, slots: Dict[str, Any], session_email: Optional[str] = None) -> dict:
     response_text = generate_need_human_response(message)
     return {"status": "handled", "intention": "need_human", "notify_email": True, "response_text": response_text}
 
-def handle_order_tracking(message: str, user_id: str, thread_id: str, slots: Dict[str, Any]) -> dict:
+def handle_order_tracking(message: str, user_id: str, thread_id: str, slots: Dict[str, Any], session_email: Optional[str] = None) -> dict:
     try:
-        # Intentar extraer info
-        prompt = order_info_prompt_template.format(message=message)
-        response = llm.invoke(prompt)
-        data = json.loads(response.content.strip())
-        
-        order_id = data.get("order_id")
-        email = data.get("email")
-
-        # Fallback a slots si están guardados en el hilo (pendiete implementar en MemoryStore si se quiere persistencia fina)
-        
-        if not order_id or not email:
+        # 0. Seguridad: Solo dar info si el usuario está registrado
+        if not session_email:
             return {
                 "status": "handled",
                 "intention": "order_tracking",
-                "response_text": "Para ayudarte con el seguimiento de tu pedido, necesito que me proporciones el **ID del pedido** y el **correo electrónico** que usaste en la compra. 😊"
+                "response_text": "Por razones de seguridad, solo puedo dar información sobre pedidos a usuarios registrados que hayan iniciado sesión. 🔒 Por favor, [inicia sesión](/login) para consultar tus pedidos."
+            }
+
+        status_map = {
+            "pending": "Pendiente (estamos preparando tu paquete) 📦",
+            "processing": "En proceso (preparando envío) ⚙️",
+            "shipped": "En camino (¡ya salió de nuestra tienda!) 🚚",
+            "delivered": "Entregado (¡esperamos que lo disfrutes!) 🎉",
+            "cancelled": "Cancelado ❌",
+        }
+
+        def format_order_summary(order):
+            status_friendly = status_map.get(order['status'], order['status'])
+            return f"• **Pedido #{order['id']}**: {status_friendly} (${order['total']} MXN)"
+
+        # 1. Si el usuario pregunta genéricamente por "mis pedidos" o "mi pedido"
+        is_generic_query = any(kw in message.lower() for kw in ["donde esta mi pedido", "como va mi pedido", "mis pedidos", "mi compra", "estado de mi pedido"])
+        
+        if is_generic_query:
+            orders = db_client.get_latest_orders_by_email(session_email, limit=3)
+            if not orders:
+                return {
+                    "status": "handled",
+                    "intention": "order_tracking",
+                    "response_text": "No he encontrado ningún pedido asociado a tu cuenta. ¡Anímate a hacer tu primera compra! 😊"
+                }
+            
+            if len(orders) > 1:
+                orders_list = "\n".join([format_order_summary(o) for o in orders])
+                return {
+                    "status": "handled",
+                    "intention": "order_tracking",
+                    "response_text": f"He encontrado tus últimos pedidos:\n\n{orders_list}\n\n¿Quieres que te dé más detalles sobre alguno en particular? (solo dime el número del pedido)."
+                }
+            
+            # Solo tiene uno
+            order = orders[0]
+            status_friendly = status_map.get(order['status'], order['status'])
+            return {
+                "status": "handled",
+                "intention": "order_tracking",
+                "response_text": f"He encontrado tu pedido **#{order['id']}**.\n\nEstado actual: **{status_friendly}**\nTotal: **${order['total']} MXN**\nFecha de compra: {order['created_at'].strftime('%d/%m/%Y')}\n\n¿En qué más te puedo ayudar?"
+            }
+
+        # 2. Intentar extraer ID si es una consulta específica
+        prompt = order_info_prompt_template.format(message=message)
+        response = llm.invoke(prompt)
+        data = json.loads(response.content.strip())
+        order_id = data.get("order_id")
+
+        if not order_id:
+             return {
+                "status": "handled",
+                "intention": "order_tracking",
+                "response_text": "¿Podrías indicarme el **ID de tu pedido** para darte información detallada? (ej. el número que aparece en tu confirmación)."
             }
         
-        order = db_client.get_order_status(order_id, email)
+        # Verificar propiedad: buscar el pedido ESPECÍFICO para este email
+        order = db_client.get_order_status(order_id, session_email)
         if not order:
             return {
                 "status": "handled",
                 "intention": "order_tracking",
-                "response_text": f"Lo siento, no pude encontrar ningún pedido con el ID **{order_id}** asociado al correo **{email}**. Por favor, verifica los datos e intenta de nuevo."
+                "response_text": f"Lo siento, no pude encontrar ningún pedido con el ID **{order_id}** asociado a tu cuenta actual. Por favor, verifica el número e intenta de nuevo."
             }
         
-        status_map = {
-            "pending": "Pendiente (estamos preparando tu paquete) 📦",
-            "paid": "Pagado y en proceso de envío ✅",
-            "shipped": "En camino (¡ya salió de nuestra tienda!) 🚚",
-            "cancelled": "Cancelado ❌",
-        }
         status_friendly = status_map.get(order['status'], order['status'])
-        
         return {
             "status": "handled",
             "intention": "order_tracking",
-            "response_text": f"¡Hola! He encontrado tu pedido **#{order_id}**.\n\nEstado actual: **{status_friendly}**\nTotal: **${order['total']} MXN**\nFecha de compra: {order['created_at'].strftime('%d/%m/%Y')}\n\n¿En qué más te puedo ayudar?"
+            "response_text": f"Aquí tienes los detalles del pedido **#{order_id}**.\n\nEstado actual: **{status_friendly}**\nTotal: **${order['total']} MXN**\nFecha de compra: {order['created_at'].strftime('%d/%m/%Y')}\n\n¿Deseas saber algo más?"
         }
     except Exception as e:
         print(f"Error en handle_order_tracking: {e}")
@@ -301,7 +342,7 @@ def handle_order_tracking(message: str, user_id: str, thread_id: str, slots: Dic
             "response_text": "Tuve un pequeño problema consultando tu pedido, pero puedes contactarnos directamente al +52 56 3082 0401 y te ayudaremos de inmediato."
         }
 
-def route_message(intention: str, message: str, user_id: str, thread_id: str, slots: Dict[str, Any]) -> dict:
+def route_message(intention: str, message: str, user_id: str, thread_id: str, slots: Dict[str, Any], session_email: Optional[str] = None) -> dict:
     routers = {
         "product_search": handle_product_search,
         "general_question": handle_general_question,
@@ -309,4 +350,4 @@ def route_message(intention: str, message: str, user_id: str, thread_id: str, sl
         "need_human": handle_need_human
     }
     handler = routers.get(intention)
-    return handler(message, user_id, thread_id, slots) if handler else {"status": "error"}
+    return handler(message, user_id, thread_id, slots, session_email) if handler else {"status": "error"}
