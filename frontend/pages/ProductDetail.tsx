@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useCart } from '../context/CartContext';
+import { useUser } from '../context/UserContext';
 import Badge from '../components/Badge';
 import { api } from '../services/api';
 
@@ -15,11 +16,16 @@ import integralIcon from '../icons/integral.png';
 
 const ProductDetail: React.FC = () => {
     const { id } = useParams<{ id: string }>();
-    const [product, setProduct] = useState<any>(null); // Use existing Product type if possible but 'any' for speed with badges array from DB
+    const [product, setProduct] = useState<any>(null);
+    const [reviews, setReviews] = useState<any[]>([]);
+    const [recommended, setRecommended] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const { addToCart } = useCart();
+    const { user, token } = useUser();
     const [quantity, setQuantity] = useState(1);
-    const [activeTab, setActiveTab] = useState('description');
+    const [showReviewForm, setShowReviewForm] = useState(false);
+    const [newReview, setNewReview] = useState({ rating: 5, comment: '' });
+    const [submittingReview, setSubmittingReview] = useState(false);
 
     const attributeIcons: Record<string, string> = {
         'organic': organicoIcon,
@@ -31,11 +37,22 @@ const ProductDetail: React.FC = () => {
         'integral': integralIcon
     };
 
-    React.useEffect(() => {
+    useEffect(() => {
         if (!id) return;
-        api.getProductById(id)
-            .then(data => {
-                setProduct(data);
+        setLoading(true);
+        Promise.all([
+            api.getProductById(id),
+            api.getProductReviews(id),
+            api.getProducts() // For simple recommendations in same category
+        ])
+            .then(([productData, reviewsData, allProducts]) => {
+                setProduct(productData);
+                setReviews(reviewsData);
+                // Filter recommendations: same category, not current product, max 4
+                const recs = allProducts
+                    .filter((p: any) => p.category_id === productData.category_id && p.id !== productData.id)
+                    .slice(0, 4);
+                setRecommended(recs);
                 setLoading(false);
             })
             .catch(err => {
@@ -43,6 +60,23 @@ const ProductDetail: React.FC = () => {
                 setLoading(false);
             });
     }, [id]);
+
+    const handleReviewSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!token || !id) return;
+        setSubmittingReview(true);
+        try {
+            const result = await api.createReview(id, newReview, token);
+            setReviews([result, ...reviews]);
+            setShowReviewForm(false);
+            setNewReview({ rating: 5, comment: '' });
+        } catch (err) {
+            console.error(err);
+            alert('Error al publicar la reseña');
+        } finally {
+            setSubmittingReview(false);
+        }
+    };
 
     if (loading) {
         return (
@@ -79,14 +113,6 @@ const ProductDetail: React.FC = () => {
                         <div className="aspect-square bg-white overflow-hidden shadow-sm">
                             <img src={product.image} alt={product.name} className="w-full h-full object-cover" />
                         </div>
-                        {/* Mock thumbnails */}
-                        <div className="grid grid-cols-4 gap-4">
-                            {[1, 2, 3, 4].map((i) => (
-                                <div key={i} className={`aspect-square bg-white cursor-pointer hover:opacity-75 transition-opacity ${i === 1 ? 'ring-1 ring-primary' : ''}`}>
-                                    <img src={product.image} className="w-full h-full object-cover" alt="Thumbnail" />
-                                </div>
-                            ))}
-                        </div>
                     </div>
 
                     {/* Info */}
@@ -115,14 +141,14 @@ const ProductDetail: React.FC = () => {
 
                         <div className="flex items-center gap-4 mb-8">
                             <div className="flex items-center text-accent">
-                                <span className="material-symbols-outlined filled text-lg">star</span>
-                                <span className="material-symbols-outlined filled text-lg">star</span>
-                                <span className="material-symbols-outlined filled text-lg">star</span>
-                                <span className="material-symbols-outlined filled text-lg">star</span>
-                                <span className="material-symbols-outlined filled text-lg">star_half</span>
+                                {[1, 2, 3, 4, 5].map(i => (
+                                    <span key={i} className={`material-symbols-outlined text-lg ${i <= Math.round(product.rating || 0) ? 'filled' : ''}`}>
+                                        {i <= Math.round(product.rating || 0) ? 'star' : 'star_outline'}
+                                    </span>
+                                ))}
                             </div>
-                            <span className="text-xs font-bold uppercase tracking-widest text-secondary border-b border-secondary/30 pb-0.5 cursor-pointer hover:text-primary">
-                                Leer {product.rating || 5} Reseñas
+                            <span className="text-xs font-bold uppercase tracking-widest text-secondary border-b border-secondary/30 pb-0.5">
+                                {product.review_count || 0} Reseñas
                             </span>
                         </div>
 
@@ -165,61 +191,119 @@ const ProductDetail: React.FC = () => {
                         {/* Reviews Section */}
                         <div className="mt-16 border-t border-background-contrast/10 pt-10">
                             <h3 className="text-2xl font-heading font-bold text-foreground mb-8 uppercase tracking-wider">Valoración y Reseñas</h3>
-                            <div className="space-y-8">
-                                <div className="bg-white p-6 border border-background-contrast/10 shadow-sm">
-                                    <div className="flex justify-between items-start mb-4">
-                                        <div>
-                                            <p className="font-bold text-foreground">María García</p>
-                                            <div className="flex text-accent mt-1">
-                                                {[1, 2, 3, 4, 5].map(i => <span key={i} className="material-symbols-outlined text-sm filled">star</span>)}
+
+                            {reviews.length > 0 ? (
+                                <div className="space-y-8 mb-10">
+                                    {reviews.map((review) => (
+                                        <div key={review.id} className="bg-white p-6 border border-background-contrast/10 shadow-sm">
+                                            <div className="flex justify-between items-start mb-4">
+                                                <div>
+                                                    <p className="font-bold text-foreground">{review.user_name}</p>
+                                                    <div className="flex text-accent mt-1">
+                                                        {[1, 2, 3, 4, 5].map(i => (
+                                                            <span key={i} className={`material-symbols-outlined text-sm ${i <= review.rating ? 'filled' : ''}`}>star</span>
+                                                        ))}
+                                                    </div>
+                                                </div>
+                                                <span className="text-xs text-secondary">
+                                                    {new Date(review.created_at).toLocaleDateString()}
+                                                </span>
                                             </div>
+                                            <p className="text-secondary text-sm italic">"{review.comment}"</p>
                                         </div>
-                                        <span className="text-xs text-secondary">Hace 2 días</span>
-                                    </div>
-                                    <p className="text-secondary text-sm italic">"Excelente calidad, se nota que es un producto 100% natural. El sabor es auténtico y el envío fue muy rápido. Volveré a comprar sin duda."</p>
+                                    ))}
                                 </div>
-                                <div className="bg-white p-6 border border-background-contrast/10 shadow-sm">
-                                    <div className="flex justify-between items-start mb-4">
-                                        <div>
-                                            <p className="font-bold text-foreground">Juan Pérez</p>
-                                            <div className="flex text-accent mt-1">
-                                                {[1, 2, 3, 4].map(i => <span key={i} className="material-symbols-outlined text-sm filled">star</span>)}
-                                                <span className="material-symbols-outlined text-sm">star</span>
-                                            </div>
+                            ) : (
+                                <p className="text-secondary italic mb-10 text-sm">Aún no hay reseñas para este producto. ¡Sé el primero en compartir tu opinión!</p>
+                            )}
+
+                            {showReviewForm ? (
+                                <form onSubmit={handleReviewSubmit} className="bg-background-contrast/5 p-6 border border-background-contrast/10">
+                                    <h4 className="text-lg font-bold mb-4">Escribir una reseña</h4>
+                                    <div className="mb-4">
+                                        <label className="block text-xs font-bold uppercase tracking-widest text-secondary mb-2">Puntuación</label>
+                                        <div className="flex gap-2">
+                                            {[1, 2, 3, 4, 5].map(i => (
+                                                <button
+                                                    key={i}
+                                                    type="button"
+                                                    onClick={() => setNewReview({ ...newReview, rating: i })}
+                                                    className={`material-symbols-outlined text-2xl ${i <= newReview.rating ? 'filled text-accent' : 'text-secondary'}`}
+                                                >
+                                                    star
+                                                </button>
+                                            ))}
                                         </div>
-                                        <span className="text-xs text-secondary">Hace 1 semana</span>
                                     </div>
-                                    <p className="text-secondary text-sm italic">"Muy buen producto, cumple con todo lo que promete. El empaque llegó en perfectas condiciones."</p>
-                                </div>
-                            </div>
-                            <button className="mt-8 text-xs font-bold uppercase tracking-widest text-primary border-b border-primary pb-1 hover:text-accent hover:border-accent transition-colors">
-                                Dejar una reseña
-                            </button>
+                                    <div className="mb-4">
+                                        <label className="block text-xs font-bold uppercase tracking-widest text-secondary mb-2">Comentario</label>
+                                        <textarea
+                                            required
+                                            value={newReview.comment}
+                                            onChange={(e) => setNewReview({ ...newReview, comment: e.target.value })}
+                                            className="w-full bg-white border border-background-contrast/20 p-3 text-sm focus:outline-none focus:border-primary min-h-[100px]"
+                                            placeholder="Comparte tu experiencia con este producto..."
+                                        ></textarea>
+                                    </div>
+                                    <div className="flex gap-4">
+                                        <button
+                                            type="submit"
+                                            disabled={submittingReview}
+                                            className="bg-primary text-white font-bold text-xs uppercase tracking-widest py-3 px-8 hover:bg-accent transition-all disabled:opacity-50"
+                                        >
+                                            {submittingReview ? 'Publicando...' : 'Publicar Reseña'}
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={() => setShowReviewForm(false)}
+                                            className="text-xs font-bold uppercase tracking-widest text-secondary hover:text-foreground"
+                                        >
+                                            Cancelar
+                                        </button>
+                                    </div>
+                                </form>
+                            ) : (
+                                token ? (
+                                    <button
+                                        onClick={() => setShowReviewForm(true)}
+                                        className="text-xs font-bold uppercase tracking-widest text-primary border-b border-primary pb-1 hover:text-accent hover:border-accent transition-colors"
+                                    >
+                                        Dejar una reseña
+                                    </button>
+                                ) : (
+                                    <p className="text-xs text-secondary font-light">
+                                        <Link to="/login" className="text-primary font-bold hover:underline">Inicia sesión</Link> para dejar una reseña.
+                                    </p>
+                                )
+                            )}
                         </div>
                     </div>
                 </div>
 
                 {/* Recommended Products */}
-                <div className="mt-24">
-                    <h3 className="text-2xl font-heading font-bold text-foreground mb-10 uppercase tracking-wider border-l-4 border-primary pl-4">También te podría gustar</h3>
-                    <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
-                        {/* Static sample products for recommendation */}
-                        {[1, 2, 3, 4].map((i) => (
-                            <div key={i} className="group cursor-pointer">
-                                <div className="aspect-[3/4] bg-white overflow-hidden mb-4 relative">
-                                    <img src={product.image} alt="Recommended" className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" />
-                                    <div className="absolute top-2 right-2">
-                                        <div className="w-6 h-6 rounded-full bg-white/90 shadow-sm flex items-center justify-center p-1">
-                                            <img src={attributeIcons['Natural']} alt="Natural" className="w-full h-full object-contain" />
+                {recommended.length > 0 && (
+                    <div className="mt-24">
+                        <h3 className="text-2xl font-heading font-bold text-foreground mb-10 uppercase tracking-wider border-l-4 border-primary pl-4">También te podría gustar</h3>
+                        <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
+                            {recommended.map((item) => (
+                                <Link to={`/product/${item.id}`} key={item.id} className="group cursor-pointer">
+                                    <div className="aspect-[3/4] bg-white overflow-hidden mb-4 relative">
+                                        <img src={item.image} alt={item.name} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" />
+                                        <div className="absolute top-2 right-2 flex flex-col gap-1">
+                                            {item.badges?.slice(0, 1).map((b: string) => (
+                                                <div key={b} className="w-6 h-6 rounded-full bg-white/90 shadow-sm flex items-center justify-center p-1">
+                                                    {attributeIcons[b] && <img src={attributeIcons[b]} alt={b} className="w-full h-full object-contain" />}
+                                                </div>
+                                            ))}
                                         </div>
                                     </div>
-                                </div>
-                                <h4 className="text-xs font-bold uppercase tracking-wider text-foreground group-hover:text-primary transition-colors">Producto Relacionado {i}</h4>
-                                <p className="text-xs text-secondary mt-1">$99.00 MXN</p>
-                            </div>
-                        ))}
+                                    <h4 className="text-xs font-bold uppercase tracking-wider text-foreground group-hover:text-primary transition-colors line-clamp-1">{item.name}</h4>
+                                    <p className="text-xs text-secondary mt-1">${item.price.toFixed(2)} MXN</p>
+                                </Link>
+                            ))}
+                        </div>
                     </div>
-                </div>
+                )}
             </div>
         </div>
     );

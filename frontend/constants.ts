@@ -9,8 +9,3 @@ export const PRODUCT_LABELS = [
   { label: 'Natural', value: 'natural' },
   { label: 'Integral', value: 'integral' }
 ];
-
-export const CATEGORIES: any[] = []; // Deprecated
-
-export const PRODUCTS: Product[] = [];
-export const BLOG_POSTS: BlogPost[] = [];

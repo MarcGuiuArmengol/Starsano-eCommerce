@@ -225,5 +225,23 @@ export const api = {
             status: response.status,
             data: await response.json().catch(() => ({})),
         };
+    },
+    // REVIEWS
+    getProductReviews: async (productId: string | number) => {
+        const response = await fetch(`${API_BASE_URL}/api/products/${productId}/reviews`);
+        if (!response.ok) throw new Error('Failed to fetch reviews');
+        return response.json();
+    },
+    createReview: async (productId: string | number, data: { rating: number, comment: string }, token: string) => {
+        const response = await fetch(`${API_BASE_URL}/api/products/${productId}/reviews`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify(data),
+        });
+        if (!response.ok) throw new Error('Failed to post review');
+        return response.json();
     }
 };

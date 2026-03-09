@@ -16,6 +16,8 @@ const port = process.env.PORT || 3000;
 app.use(cors());
 app.use(express.json());
 
+
+
 const pool = new Pool({
     user: process.env.POSTGRES_USER || 'postgres',
     host: process.env.POSTGRES_HOST || 'localhost',
@@ -76,6 +78,43 @@ const isAdmin = (req: Request, res: Response, next: any) => {
     next();
 };
 
+// Review Endpoints
+app.get('/api/products/:id/reviews', async (req: Request, res: Response) => {
+    try {
+        const { id } = req.params;
+        const result = await pool.query(
+            'SELECT * FROM reviews WHERE product_id = $1 ORDER BY created_at DESC',
+            [id]
+        );
+        res.json(result.rows);
+    } catch (err: any) {
+        console.error(err);
+        res.status(500).json({ message: 'Error fetching reviews' });
+    }
+});
+
+app.post('/api/products/:id/reviews', authenticateToken, async (req: Request, res: Response) => {
+    try {
+        const { id } = req.params;
+        const { rating, comment } = req.body;
+        const { userId } = (req as any).user;
+
+        // Fetch user info for name
+        const userRes = await pool.query('SELECT email FROM users WHERE id = $1', [userId]);
+        const userName = userRes.rows[0].email.split('@')[0];
+
+        const result = await pool.query(
+            `INSERT INTO reviews (product_id, user_id, user_name, rating, comment)
+             VALUES ($1, $2, $3, $4, $5) RETURNING *`,
+            [id, userId, userName, rating, comment]
+        );
+        res.status(201).json(result.rows[0]);
+    } catch (err: any) {
+        console.error(err);
+        res.status(500).json({ message: 'Error posting review' });
+    }
+});
+
 app.get('/api/debug-auth', authenticateToken, (req: Request, res: Response) => {
     res.json({
         user: (req as any).user,
@@ -111,7 +150,9 @@ app.get('/api/products', async (req: Request, res: Response) => {
                  JOIN product_attributes pa ON a.id = pa.attribute_id
                  WHERE pa.product_id = p.id),
                 '[]'
-            ) as dynamic_attributes
+            ) as dynamic_attributes,
+            COALESCE((SELECT AVG(rating) FROM reviews WHERE product_id = p.id), p.rating) as avg_rating,
+            COALESCE((SELECT COUNT(*) FROM reviews WHERE product_id = p.id), 0) as review_count
             FROM products p
             LEFT JOIN categories c ON p.category_id = c.id
             ORDER BY p.id DESC
@@ -120,7 +161,8 @@ app.get('/api/products', async (req: Request, res: Response) => {
         const products = result.rows.map((row: any) => ({
             ...row,
             price: Number(row.price),
-            rating: Number(row.rating),
+            rating: Number(row.avg_rating),
+            review_count: Number(row.review_count),
             badges: row.badges || []
         }));
         res.json(products);
@@ -142,7 +184,9 @@ app.get('/api/products/:id', async (req: Request, res: Response) => {
                  JOIN product_attributes pa ON a.id = pa.attribute_id
                  WHERE pa.product_id = p.id),
                 '[]'
-            ) as dynamic_attributes
+            ) as dynamic_attributes,
+            COALESCE((SELECT AVG(rating) FROM reviews WHERE product_id = p.id), p.rating) as avg_rating,
+            COALESCE((SELECT COUNT(*) FROM reviews WHERE product_id = p.id), 0) as review_count
             FROM products p
             LEFT JOIN categories c ON p.category_id = c.id
             WHERE p.id = $1
@@ -155,7 +199,8 @@ app.get('/api/products/:id', async (req: Request, res: Response) => {
         const product = {
             ...result.rows[0],
             price: Number(result.rows[0].price),
-            rating: Number(result.rows[0].rating),
+            rating: Number(result.rows[0].avg_rating),
+            review_count: Number(result.rows[0].review_count),
             badges: result.rows[0].badges || []
         };
         res.json(product);
@@ -590,6 +635,17 @@ app.delete('/api/admin/attributes/:id', authenticateToken, isAdmin, async (req: 
     } catch (err) {
         console.error(err);
         res.status(500).json({ message: 'Error deleting attribute' });
+    }
+});
+
+// ADMIN ARTICLE CRUD
+app.delete('/api/admin/articles/all', authenticateToken, isAdmin, async (req: Request, res: Response) => {
+    try {
+        await pool.query('DELETE FROM articles');
+        res.json({ message: 'All articles deleted' });
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ message: 'Error deleting articles' });
     }
 });
 

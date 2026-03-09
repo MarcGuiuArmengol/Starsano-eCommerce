@@ -1,15 +1,16 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { CATEGORIES, PRODUCTS, BLOG_POSTS } from '../constants';
 import ProductCard from '../components/ProductCard';
 import { api } from '../services/api';
 
 const Home: React.FC = () => {
-  const [products, setProducts] = React.useState<any[]>([]);
-  const [loading, setLoading] = React.useState(true);
-  const [error, setError] = React.useState<string | null>(null);
-  const [newsletterEmail, setNewsletterEmail] = React.useState('');
-  const [newsletterStatus, setNewsletterStatus] = React.useState<'idle' | 'loading' | 'success' | 'error'>('idle');
+  const [products, setProducts] = useState<any[]>([]);
+  const [categories, setCategories] = useState<any[]>([]);
+  const [articles, setArticles] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [newsletterEmail, setNewsletterEmail] = useState('');
+  const [newsletterStatus, setNewsletterStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
 
   const handleNewsletterSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -24,22 +25,29 @@ const Home: React.FC = () => {
     }
   };
 
-  React.useEffect(() => {
-    console.log('Fetching products from api');
-    api.getProducts()
-      .then(data => {
-        console.log(`Fetched ${data.length} products`);
-        setProducts(data);
-        setLoading(false);
-      })
-      .catch(err => {
-        console.error("Failed to fetch featured products:", err.message);
+  useEffect(() => {
+    const fetchData = async () => {
+      setLoading(true);
+      try {
+        const [productsData, categoriesData, articlesData] = await Promise.all([
+          api.getProducts(),
+          api.getCategories(),
+          api.getArticles()
+        ]);
+        setProducts(productsData);
+        setCategories(categoriesData);
+        setArticles(articlesData);
+      } catch (err: any) {
+        console.error("Failed to fetch home data:", err.message);
         setError(err.message);
+      } finally {
         setLoading(false);
-      });
+      }
+    };
+    fetchData();
   }, []);
 
-  const [currentSlide, setCurrentSlide] = React.useState(0);
+  const [currentSlide, setCurrentSlide] = useState(0);
   const slides = [
     {
       image: "/images/1.png",
@@ -61,14 +69,12 @@ const Home: React.FC = () => {
     }
   ];
 
-  React.useEffect(() => {
+  useEffect(() => {
     const timer = setInterval(() => {
       setCurrentSlide((prev) => (prev + 1) % slides.length);
     }, 5000);
     return () => clearInterval(timer);
   }, [slides.length]);
-
-  const featuredProducts = products.slice(0, 4);
 
   return (
     <>
@@ -134,55 +140,6 @@ const Home: React.FC = () => {
         </div>
       </section>
 
-      {/* Collections Grid */}
-      <section className="py-24 px-4 bg-background">
-        <div className="max-w-7xl mx-auto">
-          <div className="flex justify-between items-end mb-12">
-            <h2 className="text-4xl text-foreground">Colecciones</h2>
-            <Link to="/shop" className="hidden md:block font-heading text-xs font-bold uppercase tracking-widest border-b border-foreground pb-1 hover:text-accent hover:border-accent transition-colors">
-              Ver todo
-            </Link>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {CATEGORIES.slice(0, 2).map((cat) => (
-              <Link to="/shop" key={cat.id} className="group relative h-[500px] overflow-hidden">
-                <img
-                  src={cat.image}
-                  alt={cat.name}
-                  className="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-105"
-                />
-                <div className="absolute inset-0 bg-black/10 group-hover:bg-black/20 transition-colors"></div>
-                <div className="absolute bottom-8 left-8 bg-white/90 backdrop-blur px-6 py-4">
-                  <h3 className="text-2xl text-foreground m-0">{cat.name}</h3>
-                  <span className="text-xs font-bold uppercase tracking-widest text-secondary mt-1 block group-hover:text-accent transition-colors">Explorar</span>
-                </div>
-              </Link>
-            ))}
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
-            {CATEGORIES.slice(2).map((cat) => (
-              <Link to="/shop" key={cat.id} className="group relative h-[350px] overflow-hidden">
-                <img
-                  src={cat.image}
-                  alt={cat.name}
-                  className="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-105"
-                />
-                <div className="absolute inset-0 bg-black/10 group-hover:bg-black/20 transition-colors"></div>
-                <div className="absolute bottom-6 left-6 text-white">
-                  <h3 className="text-2xl m-0">{cat.name}</h3>
-                  <span className="text-xs font-bold uppercase tracking-widest mt-1 block opacity-0 group-hover:opacity-100 transition-opacity transform translate-y-2 group-hover:translate-y-0">Explorar</span>
-                </div>
-              </Link>
-            ))}
-            <Link to="/shop" className="relative h-[350px] bg-primary flex flex-col items-center justify-center text-center p-8 group">
-              <span className="material-symbols-outlined text-6xl text-accent mb-4 group-hover:scale-110 transition-transform">arrow_forward</span>
-              <h3 className="text-2xl text-white mb-2">Ver todo el catálogo</h3>
-              <p className="text-white/60 text-sm">Descubre más de 100 productos naturales.</p>
-            </Link>
-          </div>
-        </div>
-      </section>
 
       {/* Featured Sections */}
       <section className="py-24 bg-white">
@@ -252,7 +209,7 @@ const Home: React.FC = () => {
         </div>
       </section>
 
-      {/* Newsletter - Moved Up */}
+      {/* Newsletter */}
       <section className="py-24 bg-primary text-white text-center">
         <div className="max-w-xl mx-auto px-4">
           <span className="material-symbols-outlined text-4xl mb-6 text-accent">spa</span>
@@ -283,71 +240,41 @@ const Home: React.FC = () => {
         </div>
       </section>
 
-      {/* Story / About Teaser */}
-      <section className="py-24 bg-background-contrast/5">
-        <div className="max-w-7xl mx-auto px-4 grid grid-cols-1 md:grid-cols-2 gap-16 items-center">
-          <div className="order-2 md:order-1">
-            <img
-              src="https://images.unsplash.com/photo-1542601906990-b4d3fb778b09?q=80&w=2813&auto=format&fit=crop"
-              alt="Our philosophy"
-              className="w-full h-[500px] object-cover grayscale hover:grayscale-0 transition-all duration-700 rounded-sm"
-            />
-          </div>
-          <div className="order-1 md:order-2">
-            <span className="text-6xl text-accent/20 font-serif block -mb-8 relative z-0">Filosofía</span>
-            <h2 className="text-4xl md:text-5xl text-foreground mb-6 relative z-10">Consciencia en cada ingrediente.</h2>
-            <p className="text-secondary text-lg leading-relaxed mb-8 font-light">
-              En Starsano, creemos que la salud no debe ser complicada. Seleccionamos rigurosamente cada producto para asegurar que cumpla con los más altos estándares de pureza y sostenibilidad.
-            </p>
-            <div className="grid grid-cols-2 gap-8 mb-8">
-              <div>
-                <h4 className="text-2xl text-foreground mb-2">10k+</h4>
-                <p className="text-xs font-bold uppercase tracking-widest text-secondary">Clientes Felices</p>
-              </div>
-              <div>
-                <h4 className="text-2xl text-foreground mb-2">100%</h4>
-                <p className="text-xs font-bold uppercase tracking-widest text-secondary">Natural</p>
-              </div>
-            </div>
-            <Link to="/contact" className="text-primary font-bold border-b border-primary pb-1 hover:text-accent hover:border-accent transition-colors">
-              Nuestra Historia &rarr;
-            </Link>
-          </div>
-        </div>
-      </section>
-
-      {/* Newsletter section was here, now moved up */}
-
       {/* Blog Journal */}
-      <section className="py-24 bg-background">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-end mb-12">
-            <h2 className="text-4xl text-foreground">El Journal</h2>
-            <Link to="/blog" className="hidden md:block font-heading text-xs font-bold uppercase tracking-widest border-b border-foreground pb-1 hover:text-accent hover:border-accent transition-colors">
-              Leer todo
-            </Link>
+      {articles.length > 0 && (
+        <section className="py-24 bg-background">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="flex justify-between items-end mb-12">
+              <h2 className="text-4xl text-foreground">El Journal</h2>
+              <Link to="/blog" className="hidden md:block font-heading text-xs font-bold uppercase tracking-widest border-b border-foreground pb-1 hover:text-accent hover:border-accent transition-colors">
+                Leer todo
+              </Link>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+              {articles.slice(0, 3).map(post => (
+                <Link to={`/blog/${post.id}`} key={post.id} className="group cursor-pointer">
+                  <article>
+                    <div className="aspect-[4/3] overflow-hidden mb-6">
+                      <img
+                        className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105 grayscale-[20%] group-hover:grayscale-0"
+                        src={post.image_url || 'https://images.unsplash.com/photo-1490645935967-10de6ba17061?q=80&w=2906&auto=format&fit=crop'}
+                        alt={post.title}
+                        loading="lazy"
+                      />
+                    </div>
+                    <div>
+                      <div className="text-xs font-bold text-accent uppercase tracking-widest mb-3">{post.author || 'Starsano'}</div>
+                      <h3 className="text-2xl text-foreground mb-3 leading-tight group-hover:underline decoration-1 underline-offset-4">{post.title}</h3>
+                      <p className="text-secondary text-sm line-clamp-2 font-light"
+                        dangerouslySetInnerHTML={{ __html: post.content.replace(/<[^>]*>/g, '').substring(0, 150) + '...' }}></p>
+                    </div>
+                  </article>
+                </Link>
+              ))}
+            </div>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            {BLOG_POSTS.map(post => (
-              <article key={post.id} className="group cursor-pointer">
-                <div className="aspect-[4/3] overflow-hidden mb-6">
-                  <img
-                    className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105 grayscale-[20%] group-hover:grayscale-0"
-                    src={post.image}
-                    alt={post.title}
-                    loading="lazy"
-                  />
-                </div>
-                <div>
-                  <div className="text-xs font-bold text-accent uppercase tracking-widest mb-3">{post.category}</div>
-                  <h3 className="text-2xl text-foreground mb-3 leading-tight group-hover:underline decoration-1 underline-offset-4">{post.title}</h3>
-                  <p className="text-secondary text-sm line-clamp-2 font-light">{post.excerpt}</p>
-                </div>
-              </article>
-            ))}
-          </div>
-        </div>
-      </section>
+        </section>
+      )}
     </>
   );
 };
