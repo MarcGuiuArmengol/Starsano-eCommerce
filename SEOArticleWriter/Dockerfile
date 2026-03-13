@@ -13,5 +13,8 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY . .
 
-# Keep the container running so the user can exec into it
-CMD ["tail", "-f", "/dev/null"]
+# Expose port 8001 for FastAPI
+EXPOSE 8001
+
+# Run the application
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8001"]

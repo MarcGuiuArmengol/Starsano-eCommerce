@@ -133,7 +133,6 @@ const Home: React.FC = () => {
       {/* Marquee / Benefits - Modernized */}
       <section className="py-6 bg-accent text-white overflow-hidden border-b border-primary/10">
         <div className="flex justify-around items-center max-w-7xl mx-auto text-xs font-bold uppercase tracking-widest px-4">
-          <span className="hidden md:inline">Envío Gratis +$999</span>
           <span className="flex items-center gap-2"><span className="material-symbols-outlined text-sm">eco</span> 100% Orgánico</span>
           <span className="flex items-center gap-2"><span className="material-symbols-outlined text-sm">verified</span> Calidad Certificada</span>
           <span className="hidden md:inline">Pagos Seguros</span>

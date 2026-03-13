@@ -6,6 +6,7 @@ import fs from 'fs';
 import path from 'path';
 import multer from 'multer';
 import { parse } from 'csv-parse/sync';
+import { exec } from 'child_process';
 import { hashPassword, comparePassword, generateToken, verifyToken } from './auth';
 
 dotenv.config();
@@ -639,6 +640,48 @@ app.delete('/api/admin/attributes/:id', authenticateToken, isAdmin, async (req: 
 });
 
 // ADMIN ARTICLE CRUD
+app.post('/api/admin/articles', authenticateToken, isAdmin, async (req: Request, res: Response) => {
+    const { title, content, image_url, author } = req.body;
+    try {
+        const result = await pool.query(
+            'INSERT INTO articles (title, content, image_url, author) VALUES ($1, $2, $3, $4) RETURNING *',
+            [title, content, image_url, author || 'Starsano']
+        );
+        res.status(201).json(result.rows[0]);
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ message: 'Error creating article' });
+    }
+});
+
+app.put('/api/admin/articles/:id', authenticateToken, isAdmin, async (req: Request, res: Response) => {
+    const { id } = req.params;
+    const { title, content, image_url, author } = req.body;
+    try {
+        const result = await pool.query(
+            'UPDATE articles SET title=$1, content=$2, image_url=$3, author=$4 WHERE id=$5 RETURNING *',
+            [title, content, image_url, author, id]
+        );
+        if (result.rows.length === 0) return res.status(404).json({ message: 'Article not found' });
+        res.json(result.rows[0]);
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ message: 'Error updating article' });
+    }
+});
+
+app.delete('/api/admin/articles/:id', authenticateToken, isAdmin, async (req: Request, res: Response) => {
+    const { id } = req.params;
+    try {
+        const result = await pool.query('DELETE FROM articles WHERE id = $1 RETURNING id', [id]);
+        if (result.rows.length === 0) return res.status(404).json({ message: 'Article not found' });
+        res.json({ message: 'Article deleted', id: result.rows[0].id });
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ message: 'Error deleting article' });
+    }
+});
+
 app.delete('/api/admin/articles/all', authenticateToken, isAdmin, async (req: Request, res: Response) => {
     try {
         await pool.query('DELETE FROM articles');
@@ -648,6 +691,30 @@ app.delete('/api/admin/articles/all', authenticateToken, isAdmin, async (req: Re
         res.status(500).json({ message: 'Error deleting articles' });
     }
 });
+
+// AI ARTICLE GENERATION
+app.post('/api/admin/articles/generate', authenticateToken, isAdmin, async (req: Request, res: Response) => {
+    try {
+        // We call the seo-writer service inside the docker-compose network
+        const response = await fetch('http://seo-writer:8001/generate', {
+            method: 'POST'
+        });
+        
+        const data = await response.json();
+        
+        if (!response.ok) {
+            console.error('AI agent service error:', data);
+            return res.status(500).json({ message: 'Error en el servicio de generación de IA', details: data });
+        }
+        
+        res.json({ message: 'Artículo generado con éxito', details: data });
+    } catch (err: any) {
+        console.error('Error connecting to AI agent service:', err.message);
+        res.status(500).json({ message: 'No se pudo conectar con el servicio de IA', error: err.message });
+    }
+});
+
+
 
 // ADMIN MANUAL IMPORT
 app.post('/api/admin/import', authenticateToken, isAdmin, async (req: Request, res: Response) => {
@@ -812,61 +879,6 @@ async function autoImportProducts() {
     }
 }
 
-async function autoMigrationArticles() {
-    const client = await pool.connect();
-    try {
-        // Ensure table exists
-        await client.query(`
-            CREATE TABLE IF NOT EXISTS articles (
-                id SERIAL PRIMARY KEY,
-                title TEXT NOT NULL,
-                content TEXT NOT NULL,
-                image_url TEXT,
-                author TEXT DEFAULT 'Starsano',
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-            )
-        `);
-
-        const check = await client.query('SELECT COUNT(*) FROM articles');
-        if (parseInt(check.rows[0].count) > 0) return;
-
-        console.log('Migrating initial articles...');
-        const oldArticles = [
-            {
-                title: "Stevia Liquida: Tu Mejor Aliado para un Estilo de Vida Keto",
-                content: "<p>La stevia líquida de Starsano es el acompañamiento perfecto para quienes buscan reducir el consumo de azúcar sin sacrificar el sabor. Al ser de origen natural, no provoca picos de glucosa, lo que la hace ideal para diabéticos y seguidores de la dieta keto.</p>",
-                image_url: "https://lh3.googleusercontent.com/aida-public/AB6AXuC56lFh9q9EJjnaYUtvXarSOWMM-BRMAryqudEVPVxWih1y2Q9uBEz1lpCXSpmbDKoFaFLIF1_MqEl4AL2fiqxbRSDbK96jCxaqsPJWwKNogGyvOieENbmnFwy84WSyBInwOpnNHtnzoVE95V_A541cpge4-3J04LQjGfRsz2XjeYy-cRg6crWseaAtf_XdPPhGQaSNvO--7y0aMIPmrqS-E2V2AkHBEjS8R0W7Ywgxhd09QCDr5U5mDI9aJkYmwbrM6zb1wp3hiug"
-            },
-            {
-                title: "Harina de Almendras: Secretos para Repostería Saludable",
-                content: "<p>Cocinar con harina de almendras abre un mundo de posibilidades para quienes evitan el gluten o buscan harinas bajas en carbohidratos.</p>",
-                image_url: "https://lh3.googleusercontent.com/aida-public/AB6AXuBbDY3Vm2itOVLLs4spQE4oVqPmdaeBsm7Mo_t6K-MXyYQK9JbRHcLXn4en_8queSFSHi-CPYnnlM_iKZsLxdqmkFODwD4p_FspFmksS7lIbcDxbQAwcv3mMFQCcvROu9JtfRREGhsVWbSGC166G_xzVV6InwzudOUpHTIrfxvma6x4uMEVkRZz7nhAadh4OX7NCkujTd32je0i4tkNMxJGPoU4q4jkTAtUM_0wtF1s2txa_I3rp92QJCoNmOgpCI2_XQv5bWWXh80"
-            },
-            {
-                title: "Guía de Endulzantes Naturales: Más Allá del Azúcar",
-                content: "<p>Elegir el endulzante adecuado puede ser confuso. El Fruto del Monje (Monk Fruit) es excelente por su potencia y falta de calorías.</p>",
-                image_url: "https://lh3.googleusercontent.com/aida-public/AB6AXuDaOwOw_rTkUkKYOFtAxGRth7K4CJo9JOGDwxCRBHGArH9Jmnwnq5nednE-EimlynoDB48lK1V5_ZlBaG4vbA9oFUSWfhPwEQ-qbve7rtiGf9muMgmkb2oz9_E_2u6kkPDkL2zuNiWrQoDSnpPtafsDe3RABhUJEotQwWF1nFeNosnkGpNEhRZLaJDGRYmmq7S7FbnFdGd-3G4caszPs3gEvCTFrslhKqV11ZEgf-XU7fll15QllK0zZLR9Dn0Vm9_N-3qWk8oACLM"
-            },
-            {
-                title: "Vivir Sin Gluten: Consejos para una Transición Exitosa",
-                content: "<p>Empezar una dieta libre de gluten no tiene por qué ser abrumador. El secreto está en enfocarse en los alimentos naturalmente libres de esta proteína.</p>",
-                image_url: "https://lh3.googleusercontent.com/aida-public/AB6AXuC-MQKf1Xtg4Q4wiuljZ7Q2udgX5iUPv2WKEpYhCbQcVYpKR4a2J1LWLaaY0CLHZekMy8rNmSauYJgxMn8_Nx4Tg8EkDL7bKctacoLTJXKlxSKIXO--YpftS_j5XDQ5JCTPUStCfw3p9sFZg19CByA1eRl0RNep8Vek4wuUQAr0k29SorxMPvnnI6OhUrrDsCcV642ngL6HM8gyox2Kqbfo4oZ79nWQihXqmOGUftlaoaIz8AVFmJutxpj-H38Ewpx-r6sIr8WFVfk"
-            }
-        ];
-
-        for (const art of oldArticles) {
-            await client.query(
-                "INSERT INTO articles (title, content, image_url) VALUES ($1, $2, $3)",
-                [art.title, art.content, art.image_url]
-            );
-        }
-        console.log('✅ Articles migrated successfully.');
-    } catch (err: any) {
-        console.error('❌ Error migrating articles:', err.message);
-    } finally {
-        client.release();
-    }
-}
 
 async function ensureAdminUser() {
     console.log('[DEBUG] Starting ensureAdminUser...');
@@ -917,8 +929,7 @@ app.listen(port, async () => {
     try {
         console.log('[DEBUG] Starting background migrations and imports...');
         await Promise.all([
-            autoImportProducts().catch(err => console.error('[ERROR] autoImportProducts failed:', err)),
-            autoMigrationArticles().catch(err => console.error('[ERROR] autoMigrationArticles failed:', err))
+            autoImportProducts().catch(err => console.error('[ERROR] autoImportProducts failed:', err))
         ]);
         console.log('[DEBUG] Background initialization tasks finished');
     } catch (err) {

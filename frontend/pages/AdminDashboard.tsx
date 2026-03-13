@@ -1,15 +1,28 @@
 import React, { useState, useEffect } from 'react';
 import { useUser } from '../context/UserContext';
 import { api } from '../services/api';
-import { CATEGORIES, PRODUCT_LABELS } from '../constants';
+import { PRODUCT_LABELS } from '../constants';
 
 const AdminDashboard: React.FC = () => {
     const { user, token } = useUser();
-    const [activeTab, setActiveTab] = useState<'orders' | 'products'>('orders');
+    const [activeTab, setActiveTab] = useState<'orders' | 'products' | 'articles'>('orders');
     const [orders, setOrders] = useState<any[]>([]);
     const [products, setProducts] = useState<any[]>([]);
+    const [articles, setArticles] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [importing, setImporting] = useState(false);
+    const [isGenerating, setIsGenerating] = useState(false);
+    const [generationProgress, setGenerationProgress] = useState(0);
+
+    // Article Form
+    const [showArticleForm, setShowArticleForm] = useState(false);
+    const [editingArticle, setEditingArticle] = useState<any>(null);
+    const [articleFormData, setArticleFormData] = useState({
+        title: '',
+        content: '',
+        image_url: '',
+        author: 'Starsano'
+    });
 
     // Product Form
     const [showProductForm, setShowProductForm] = useState(false);
@@ -36,7 +49,18 @@ const AdminDashboard: React.FC = () => {
     const refreshData = () => {
         fetchOrders();
         fetchProducts();
+        fetchArticles();
     };
+
+    const fetchArticles = async () => {
+        try {
+            const data = await api.getArticles();
+            setArticles(data);
+        } catch (err) {
+            console.error('Error fetching articles:', err);
+        }
+    };
+
 
     const handleImportCSV = async () => {
         if (!confirm('¿Quieres recargar todos los productos desde el archivo CSV? Esto actualizará precios y descripciones existentes.')) return;
@@ -59,7 +83,7 @@ const AdminDashboard: React.FC = () => {
         }
     };
 
-    const handleFileUpload = async (file: File) => {
+    const handleFileUpload = async (file: File, type: 'product' | 'article' = 'product') => {
         setUploading(true);
         const data = new FormData();
         data.append('image', file);
@@ -72,7 +96,11 @@ const AdminDashboard: React.FC = () => {
             });
             const result = await res.json();
             if (res.ok) {
-                setProductFormData(prev => ({ ...prev, image: result.imageUrl }));
+                if (type === 'product') {
+                    setProductFormData(prev => ({ ...prev, image: result.imageUrl }));
+                } else {
+                    setArticleFormData(prev => ({ ...prev, image_url: result.imageUrl }));
+                }
             }
         } catch (err) {
             console.error('Error uploading file:', err);
@@ -81,14 +109,16 @@ const AdminDashboard: React.FC = () => {
         }
     };
 
-    const handleDrop = (e: React.DragEvent) => {
+    const handleDrop = (e: React.DragEvent, type: 'product' | 'article' = 'product') => {
         e.preventDefault();
         setIsDragging(false);
         const file = e.dataTransfer.files[0];
         if (file && file.type.startsWith('image/')) {
-            handleFileUpload(file);
+            handleFileUpload(file, type);
         }
     };
+    const handleArticleDrop = (e: React.DragEvent) => handleDrop(e, 'article');
+    const handleProductDrop = (e: React.DragEvent) => handleDrop(e, 'product');
 
     const fetchOrders = async () => {
         try {
@@ -179,6 +209,73 @@ const AdminDashboard: React.FC = () => {
         }
     };
 
+    const handleArticleSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        try {
+            // Convert plain text paragraphs to HTML <p> tags
+            const htmlContent = articleFormData.content
+                .split('\n')
+                .filter(p => p.trim() !== '')
+                .map(p => `<p>${p.trim()}</p>`)
+                .join('\n');
+
+            const submissionData = { ...articleFormData, content: htmlContent };
+
+            const res = editingArticle
+                ? await api.updateArticle(editingArticle.id, submissionData, token)
+                : await api.createArticle(submissionData, token);
+            if (res) {
+                setShowArticleForm(false);
+                setEditingArticle(null);
+                setArticleFormData({ title: '', content: '', image_url: '', author: 'Starsano' });
+                fetchArticles();
+            }
+        } catch (err) {
+            console.error('Error saving article:', err);
+        }
+    };
+
+    const deleteArticle = async (id: number) => {
+        if (!confirm('¿Seguro que quieres eliminar este artículo?')) return;
+        try {
+            await api.deleteArticle(id, token);
+            fetchArticles();
+        } catch (err) {
+            console.error('Error deleting article:', err);
+        }
+    };
+
+
+    const handleGenerateArticle = async () => {
+        if (isGenerating) return;
+        setIsGenerating(true);
+        setGenerationProgress(0);
+
+        // Simulate progress while generating
+        const interval = setInterval(() => {
+            setGenerationProgress(prev => {
+                if (prev >= 90) return prev;
+                return prev + Math.random() * 5;
+            });
+        }, 800);
+
+        try {
+            await api.generateArticle(token);
+            clearInterval(interval);
+            setGenerationProgress(100);
+            setTimeout(() => {
+                setIsGenerating(false);
+                setGenerationProgress(0);
+                fetchArticles();
+            }, 500);
+        } catch (err) {
+            clearInterval(interval);
+            setIsGenerating(false);
+            console.error('Error generating article:', err);
+            alert('Error al generar el artículo con IA');
+        }
+    };
+
     return (
         <div className="min-h-screen bg-background p-4 md:p-8">
             <div className="max-w-7xl mx-auto">
@@ -201,6 +298,12 @@ const AdminDashboard: React.FC = () => {
                             className={`px-4 md:px-6 py-2 text-[10px] md:text-xs font-bold uppercase tracking-widest transition-all rounded-md whitespace-nowrap ${activeTab === 'products' ? 'bg-primary text-white' : 'text-secondary hover:bg-background'}`}
                         >
                             Productos
+                        </button>
+                        <button
+                            onClick={() => setActiveTab('articles')}
+                            className={`px-4 md:px-6 py-2 text-[10px] md:text-xs font-bold uppercase tracking-widest transition-all rounded-md whitespace-nowrap ${activeTab === 'articles' ? 'bg-primary text-white' : 'text-secondary hover:bg-background'}`}
+                        >
+                            Journal
                         </button>
                     </div>
                 </header>
@@ -418,7 +521,7 @@ const AdminDashboard: React.FC = () => {
                                         <div
                                             onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
                                             onDragLeave={() => setIsDragging(false)}
-                                            onDrop={handleDrop}
+                                            onDrop={handleProductDrop}
                                             className={`border-2 border-dashed rounded-xl p-8 text-center transition-all ${isDragging ? 'border-primary bg-primary/5' : 'border-background-contrast/10'}`}
                                         >
                                             {productFormData.image ? (
@@ -446,6 +549,171 @@ const AdminDashboard: React.FC = () => {
                                         <div className="flex gap-4 pt-4">
                                             <button onClick={() => setShowProductForm(false)} type="button" className="flex-1 px-8 py-3 bg-background text-secondary text-xs font-bold uppercase tracking-widest hover:bg-background-contrast/5 transition-all">Cancelar</button>
                                             <button type="submit" className="flex-1 px-8 py-3 bg-primary text-white text-xs font-bold uppercase tracking-widest hover:bg-accent transition-all shadow-lg">Guardar Producto</button>
+                                        </div>
+                                    </form>
+                                </div>
+                            </div>
+                        )}
+                    </>
+                )}
+
+                {activeTab === 'articles' && (
+                    <>
+                        <div className="flex flex-col gap-4 mb-8">
+                            <div className="flex justify-between items-center">
+                                <h2 className="text-2xl font-heading text-foreground">Gestión de Artículos (Journal)</h2>
+                                <div className="flex gap-4">
+                                    <button
+                                        onClick={handleGenerateArticle}
+                                        disabled={isGenerating}
+                                        className="bg-accent text-white px-6 py-2.5 text-xs font-bold uppercase tracking-widest hover:bg-foreground transition-all shadow-lg flex items-center gap-2 disabled:opacity-50"
+                                    >
+                                        <span className="material-symbols-outlined text-sm">magic_button</span> {isGenerating ? 'Generando...' : 'Generar con IA'}
+                                    </button>
+                                    <button
+                                        onClick={() => {
+                                            setEditingArticle(null);
+                                            setArticleFormData({ title: '', content: '', image_url: '', author: 'Starsano' });
+                                            setShowArticleForm(true);
+                                        }}
+                                        className="bg-primary text-white px-6 py-2.5 text-xs font-bold uppercase tracking-widest hover:bg-accent transition-all shadow-lg flex items-center gap-2"
+                                    >
+                                        <span className="material-symbols-outlined text-sm">add</span> Nuevo Artículo
+                                    </button>
+                                </div>
+                            </div>
+                            {isGenerating && (
+                                <div className="w-full bg-background-contrast/10 h-1.5 rounded-full overflow-hidden">
+                                    <div 
+                                        className="bg-accent h-full transition-all duration-300 ease-out"
+                                        style={{ width: `${generationProgress}%` }}
+                                    />
+                                </div>
+                            )}
+                        </div>
+
+                        <div className="bg-white rounded-xl shadow-sm border border-background-contrast/10 overflow-hidden">
+                            <div className="overflow-x-auto">
+                                <table className="w-full text-left text-sm">
+                                    <thead className="bg-background/50 text-secondary uppercase text-[10px] font-bold tracking-widest">
+                                        <tr>
+                                            <th className="px-6 py-4">Título</th>
+                                            <th className="px-6 py-4">Autor</th>
+                                            <th className="px-6 py-4">Fecha</th>
+                                            <th className="px-6 py-4 text-right">Acciones</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-background-contrast/5">
+                                        {articles.length === 0 ? (
+                                            <tr><td colSpan={4} className="text-center py-10">No hay artículos</td></tr>
+                                        ) : articles.map(article => (
+                                            <tr key={article.id} className="hover:bg-background-contrast/2 transition-colors">
+                                                <td className="px-6 py-4 font-bold text-foreground">{article.title}</td>
+                                                <td className="px-6 py-4 text-secondary">{article.author}</td>
+                                                <td className="px-6 py-4 text-secondary text-xs">{new Date(article.created_at).toLocaleDateString()}</td>
+                                                <td className="px-6 py-4 text-right">
+                                                    <div className="flex justify-end gap-2">
+                                                        <button
+                                                            onClick={() => {
+                                                                setEditingArticle(article);
+                                                                setArticleFormData({
+                                                                    title: article.title,
+                                                                    content: article.content,
+                                                                    image_url: article.image_url,
+                                                                    author: article.author
+                                                                });
+                                                                setShowArticleForm(true);
+                                                            }}
+                                                            className="text-secondary hover:text-primary p-2 transition-colors"
+                                                        >
+                                                            <span className="material-symbols-outlined text-lg">edit</span>
+                                                        </button>
+                                                        <button onClick={() => deleteArticle(article.id)} className="text-secondary hover:text-red-500 p-2 transition-colors">
+                                                            <span className="material-symbols-outlined text-lg">delete</span>
+                                                        </button>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        {showArticleForm && (
+                            <div className="fixed inset-0 bg-foreground/20 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+                                <div className="bg-white rounded-2xl shadow-2xl p-8 max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+                                    <div className="flex justify-between items-center mb-8 border-b pb-4">
+                                        <h3 className="text-xl font-bold font-heading">{editingArticle ? 'Editar Artículo' : 'Crear Nuevo Artículo'}</h3>
+                                        <button onClick={() => setShowArticleForm(false)} className="text-secondary hover:text-foreground">
+                                            <span className="material-symbols-outlined">close</span>
+                                        </button>
+                                    </div>
+                                    <form onSubmit={handleArticleSubmit} className="space-y-6">
+                                        <div>
+                                            <label className="text-[10px] font-bold uppercase tracking-widest text-secondary block mb-2">Título</label>
+                                            <input required type="text" value={articleFormData.title} onChange={e => setArticleFormData({ ...articleFormData, title: e.target.value })} className="w-full px-4 py-3 bg-background border-none text-sm focus:ring-2 focus:ring-primary/20 outline-none" />
+                                        </div>
+                                        <div>
+                                            <label className="text-[10px] font-bold uppercase tracking-widest text-secondary block mb-2">Contenido (Texto)</label>
+                                            <textarea required rows={10} value={articleFormData.content} onChange={e => setArticleFormData({ ...articleFormData, content: e.target.value })} className="w-full px-4 py-3 bg-background border-none text-sm focus:ring-2 focus:ring-primary/20 outline-none resize-none font-sans" placeholder="Escribe tu artículo aquí. Los párrafos se crearán automáticamente al guardar." />
+                                        </div>
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                            <div className="space-y-4">
+                                                <label className="text-[10px] font-bold uppercase tracking-widest text-secondary block">Imagen Portada</label>
+                                                <div
+                                                    onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
+                                                    onDragLeave={() => setIsDragging(false)}
+                                                    onDrop={handleArticleDrop}
+                                                    className={`border-2 border-dashed rounded-xl p-6 text-center transition-all ${isDragging ? 'border-primary bg-primary/5' : 'border-background-contrast/10'}`}
+                                                >
+                                                    {articleFormData.image_url ? (
+                                                        <div className="relative inline-block group">
+                                                            <img src={articleFormData.image_url} alt="Preview" className="w-full h-32 object-cover rounded-lg shadow-sm" />
+                                                            <button 
+                                                                type="button"
+                                                                onClick={() => setArticleFormData({ ...articleFormData, image_url: '' })} 
+                                                                className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 shadow-md opacity-0 group-hover:opacity-100 transition-opacity"
+                                                            >
+                                                                <span className="material-symbols-outlined text-sm">close</span>
+                                                            </button>
+                                                        </div>
+                                                    ) : (
+                                                        <div className="space-y-2">
+                                                            <span className="material-symbols-outlined text-3xl text-secondary">image</span>
+                                                            <p className="text-[10px] text-secondary">{uploading ? 'Subiendo...' : 'Arrastra una imagen o selecciónala'}</p>
+                                                            <input
+                                                                type="file"
+                                                                accept="image/*"
+                                                                onChange={(e) => e.target.files?.[0] && handleFileUpload(e.target.files[0], 'article')}
+                                                                className="hidden"
+                                                                id="article-image-upload"
+                                                            />
+                                                            <label
+                                                                htmlFor="article-image-upload"
+                                                                className="inline-block px-4 py-2 bg-background border border-background-contrast/10 text-[10px] font-bold uppercase tracking-widest cursor-pointer hover:bg-background-contrast/5 transition-all"
+                                                            >
+                                                                Subir desde PC
+                                                            </label>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                                <input
+                                                    type="text"
+                                                    placeholder="O pega una URL de imagen"
+                                                    value={articleFormData.image_url}
+                                                    onChange={e => setArticleFormData({ ...articleFormData, image_url: e.target.value })}
+                                                    className="w-full px-4 py-2 bg-background border-none text-[10px] focus:ring-1 focus:ring-primary/20 outline-none"
+                                                />
+                                            </div>
+                                            <div>
+                                                <label className="text-[10px] font-bold uppercase tracking-widest text-secondary block mb-2">Autor</label>
+                                                <input type="text" value={articleFormData.author} onChange={e => setArticleFormData({ ...articleFormData, author: e.target.value })} className="w-full px-4 py-3 bg-background border-none text-sm focus:ring-2 focus:ring-primary/20 outline-none" />
+                                            </div>
+                                        </div>
+                                        <div className="flex gap-4 pt-4">
+                                            <button onClick={() => setShowArticleForm(false)} type="button" className="flex-1 px-8 py-3 bg-background text-secondary text-xs font-bold uppercase tracking-widest hover:bg-background-contrast/5 transition-all">Cancelar</button>
+                                            <button type="submit" className="flex-1 px-8 py-3 bg-primary text-white text-xs font-bold uppercase tracking-widest hover:bg-accent transition-all shadow-lg">Guardar Artículo</button>
                                         </div>
                                     </form>
                                 </div>

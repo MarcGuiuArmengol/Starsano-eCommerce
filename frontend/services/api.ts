@@ -243,5 +243,46 @@ export const api = {
         });
         if (!response.ok) throw new Error('Failed to post review');
         return response.json();
+    },
+    // ADMIN - ARTICLES
+    createArticle: async (data: any, token: string) => {
+        const response = await fetch(`${API_BASE_URL}/api/admin/articles`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify(data),
+        });
+        if (!response.ok) throw new Error('Failed to create article');
+        return response.json();
+    },
+    updateArticle: async (id: number | string, data: any, token: string) => {
+        const response = await fetch(`${API_BASE_URL}/api/admin/articles/${id}`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify(data),
+        });
+        if (!response.ok) throw new Error('Failed to update article');
+        return response.json();
+    },
+    deleteArticle: async (id: number | string, token: string) => {
+        const response = await fetch(`${API_BASE_URL}/api/admin/articles/${id}`, {
+            method: 'DELETE',
+            headers: { 'Authorization': `Bearer ${token}` },
+        });
+        if (!response.ok) throw new Error('Failed to delete article');
+        return response.json();
+    },
+    generateArticle: async (token: string) => {
+        const response = await fetch(`${API_BASE_URL}/api/admin/articles/generate`, {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (!response.ok) throw new Error('Failed to generate article');
+        return response.json();
     }
 };
