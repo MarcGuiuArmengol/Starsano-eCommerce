@@ -89,7 +89,7 @@ class MemoryStore:
         )
         self.conn.commit()
 
-    def fetch_last_messages(self, thread_id: str, limit: int = 30) -> List[Dict[str, Any]]:
+    def fetch_last_messages(self, thread_id: str, limit: int = 20) -> List[Dict[str, Any]]:
         rows = self.conn.execute(
             "SELECT role, content, created_at, tokens_est, meta_json FROM messages WHERE thread_id=? "
             "ORDER BY created_at DESC LIMIT ?",
@@ -106,6 +106,10 @@ class MemoryStore:
                 "meta": json.loads(r["meta_json"] or "{}"),
             })
         return out
+
+    def get_history_as_text(self, thread_id: str, limit: int = 10) -> str:
+        messages = self.fetch_last_messages(thread_id, limit)
+        return "\n".join([f"{m['role'].capitalize()}: {m['content']}" for m in messages])
 
 # ----------------------------
 # Construcción de contexto

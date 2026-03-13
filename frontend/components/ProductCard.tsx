@@ -71,7 +71,7 @@ const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
         {/* Quick Add Button overlay */}
         <button
           onClick={handleAddToCart}
-          className="absolute bottom-4 right-4 w-10 h-10 bg-white text-primary rounded-full shadow-md flex items-center justify-center opacity-0 translate-y-4 group-hover:opacity-100 group-hover:translate-y-0 transition-all duration-300 hover:bg-primary hover:text-white"
+          className="absolute bottom-4 right-4 w-10 h-10 bg-white text-primary rounded-full shadow-md flex items-center justify-center opacity-100 md:opacity-0 md:translate-y-4 md:group-hover:opacity-100 md:group-hover:translate-y-0 transition-all duration-300 hover:bg-primary hover:text-white"
           aria-label="Add to cart"
         >
           <span className="material-symbols-outlined text-xl">add_shopping_cart</span>

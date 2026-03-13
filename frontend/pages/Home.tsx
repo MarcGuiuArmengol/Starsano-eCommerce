@@ -110,20 +110,20 @@ const Home: React.FC = () => {
       </section>
 
       {/* SEO Headline & Mission Section */}
-      <section className="py-20 md:py-32 bg-white text-center px-4 border-b border-background-contrast/10">
+      <section className="py-16 md:py-32 bg-white text-center px-6 border-b border-background-contrast/10">
         <div className="max-w-4xl mx-auto">
-          <h1 className="text-4xl md:text-6xl lg:text-7xl text-foreground mb-10 leading-tight font-heading">
+          <h1 className="text-3xl sm:text-4xl md:text-6xl lg:text-7xl text-foreground mb-8 md:mb-10 leading-tight font-heading">
             Tienda de alimentos orgánicos, <br className="hidden md:block" />
             <span className="text-primary italic">sin gluten y sin azúcar.</span>
           </h1>
-          <p className="text-lg md:text-xl text-secondary font-light mb-12 max-w-2xl mx-auto leading-relaxed">
+          <p className="text-base md:text-xl text-secondary font-light mb-10 md:mb-12 max-w-2xl mx-auto leading-relaxed">
             En Starsano, seleccionamos cada producto pensando en tu bienestar. Calidad premium, 100% natural y con consciencia en cada ingrediente.
           </p>
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-6">
-            <Link to="/shop" className="w-full sm:w-auto px-12 py-5 bg-primary text-white font-bold uppercase tracking-widest text-sm hover:bg-accent transition-all duration-300 shadow-lg shadow-primary/20">
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-4 md:gap-6">
+            <Link to="/shop" className="w-full sm:w-auto px-10 py-4 md:px-12 md:py-5 bg-primary text-white font-bold uppercase tracking-widest text-xs md:text-sm hover:bg-accent transition-all duration-300 shadow-lg shadow-primary/20">
               Explorar Catálogo
             </Link>
-            <Link to="/blog" className="w-full sm:w-auto px-12 py-5 border border-primary text-primary font-bold uppercase tracking-widest text-sm hover:bg-primary hover:text-white transition-all duration-300">
+            <Link to="/blog" className="w-full sm:w-auto px-10 py-4 md:px-12 md:py-5 border border-primary text-primary font-bold uppercase tracking-widest text-xs md:text-sm hover:bg-primary hover:text-white transition-all duration-300">
               Leer El Journal
             </Link>
           </div>
@@ -145,11 +145,11 @@ const Home: React.FC = () => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
 
           {/* Section 1: Novedades */}
-          <div className="mb-24">
-            <div className="flex justify-between items-end mb-12">
+          <div className="mb-20 md:mb-24">
+            <div className="flex justify-between items-end mb-8 md:mb-12">
               <div>
-                <span className="font-heading text-xs font-bold uppercase tracking-widest text-accent mb-3 block">Recién Llegados</span>
-                <h2 className="text-4xl md:text-5xl text-foreground">Novedades</h2>
+                <span className="font-heading text-[10px] md:text-xs font-bold uppercase tracking-widest text-accent mb-2 md:mb-3 block">Recién Llegados</span>
+                <h2 className="text-3xl md:text-5xl text-foreground">Novedades</h2>
               </div>
               <Link to="/shop" className="hidden md:block font-heading text-xs font-bold uppercase tracking-widest border-b border-foreground pb-1 hover:text-accent hover:border-accent transition-colors">
                 Ver todas las novedades
@@ -170,11 +170,11 @@ const Home: React.FC = () => {
           </div>
 
           {/* Section 2: Populares */}
-          <div className="mb-24">
-            <div className="flex justify-between items-end mb-12">
+          <div className="mb-20 md:mb-24">
+            <div className="flex justify-between items-end mb-8 md:mb-12">
               <div>
-                <span className="font-heading text-xs font-bold uppercase tracking-widest text-accent mb-3 block">Los Favoritos</span>
-                <h2 className="text-4xl md:text-5xl text-foreground">Más Populares</h2>
+                <span className="font-heading text-[10px] md:text-xs font-bold uppercase tracking-widest text-accent mb-2 md:mb-3 block">Los Favoritos</span>
+                <h2 className="text-3xl md:text-5xl text-foreground">Más Populares</h2>
               </div>
               <Link to="/shop" className="hidden md:block font-heading text-xs font-bold uppercase tracking-widest border-b border-foreground pb-1 hover:text-accent hover:border-accent transition-colors">
                 Ver todos los favoritos

@@ -106,32 +106,31 @@ const ProductDetail: React.FC = () => {
                     <span className="mx-2 text-background-contrast">/</span>
                     <span className="text-foreground font-bold">{product.name}</span>
                 </nav>
-
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-20">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-20">
                     {/* Gallery */}
                     <div className="space-y-4">
-                        <div className="aspect-square bg-white overflow-hidden shadow-sm">
+                        <div className="aspect-square bg-white overflow-hidden shadow-sm rounded-sm">
                             <img src={product.image} alt={product.name} className="w-full h-full object-cover" />
                         </div>
                     </div>
 
                     {/* Info */}
-                    <div className="pt-4">
-                        <div className="mb-6 flex gap-2">
+                    <div className="pt-2 md:pt-4">
+                        <div className="mb-4 md:mb-6 flex flex-wrap gap-2">
                             {product.badges?.map((b: string) => <Badge key={b} text={b} />)}
                         </div>
 
-                        <h1 className="text-4xl md:text-5xl text-foreground mb-4 leading-tight">{product.name}</h1>
+                        <h1 className="text-3xl md:text-5xl text-foreground mb-4 leading-tight font-heading">{product.name}</h1>
 
                         {/* Attribute Icons */}
-                        <div className="flex flex-wrap gap-6 mb-10">
+                        <div className="flex flex-wrap gap-4 md:gap-6 mb-8 md:mb-10">
                             {product.badges?.map((badge: string) => (
                                 attributeIcons[badge] && (
                                     <div key={badge} className="flex flex-col items-center gap-1.5 group">
-                                        <div className="w-16 h-16 rounded-full bg-white shadow-md flex items-center justify-center p-3 hover:shadow-lg transition-all border-2 border-primary/5 group-hover:border-primary/20">
+                                        <div className="w-12 h-12 md:w-16 md:h-16 rounded-full bg-white shadow-sm flex items-center justify-center p-2.5 md:p-3 hover:shadow-lg transition-all border-2 border-primary/5 group-hover:border-primary/20">
                                             <img src={attributeIcons[badge]} alt={badge} className="w-full h-full object-contain" />
                                         </div>
-                                        <span className="text-[10px] font-black uppercase tracking-widest text-secondary transition-colors group-hover:text-primary">
+                                        <span className="text-[8px] md:text-[10px] font-black uppercase tracking-widest text-secondary transition-colors group-hover:text-primary">
                                             {badge}
                                         </span>
                                     </div>
@@ -139,49 +138,49 @@ const ProductDetail: React.FC = () => {
                             ))}
                         </div>
 
-                        <div className="flex items-center gap-4 mb-8">
+                        <div className="flex items-center gap-4 mb-6 md:mb-8">
                             <div className="flex items-center text-accent">
                                 {[1, 2, 3, 4, 5].map(i => (
-                                    <span key={i} className={`material-symbols-outlined text-lg ${i <= Math.round(product.rating || 0) ? 'filled' : ''}`}>
+                                    <span key={i} className={`material-symbols-outlined text-base md:text-lg ${i <= Math.round(product.rating || 0) ? 'filled' : ''}`}>
                                         {i <= Math.round(product.rating || 0) ? 'star' : 'star_outline'}
                                     </span>
                                 ))}
                             </div>
-                            <span className="text-xs font-bold uppercase tracking-widest text-secondary border-b border-secondary/30 pb-0.5">
+                            <span className="text-[10px] md:text-xs font-bold uppercase tracking-widest text-secondary border-b border-secondary/30 pb-0.5">
                                 {product.review_count || 0} Reseñas
                             </span>
                         </div>
 
-                        <div className="text-3xl font-light text-foreground mb-8">
+                        <div className="text-2xl md:text-3xl font-light text-foreground mb-6 md:mb-8">
                             ${product.price ? product.price.toFixed(2) : '0.00'} MXN
                         </div>
 
-                        <p className="text-secondary leading-relaxed mb-10 font-light text-lg">
+                        <p className="text-secondary leading-relaxed mb-8 md:mb-10 font-light text-base md:text-lg">
                             {product.description}
                         </p>
 
                         {/* Actions */}
-                        <div className="bg-white p-6 border border-background-contrast/20 mb-10">
+                        <div className="bg-white p-4 md:p-6 border border-background-contrast/20 mb-10">
                             <div className="flex flex-col sm:flex-row gap-4">
                                 <div className="flex items-center border border-background-contrast/50 w-full sm:w-32 bg-background">
                                     <button
                                         onClick={() => setQuantity(Math.max(1, quantity - 1))}
-                                        className="px-4 py-3 hover:text-primary transition-colors text-xl"
+                                        className="flex-1 px-4 py-3 hover:text-primary transition-colors text-xl"
                                     >-</button>
                                     <input
                                         type="number"
                                         value={quantity}
                                         readOnly
-                                        className="w-full text-center bg-transparent border-none focus:ring-0 font-bold text-foreground"
+                                        className="w-12 text-center bg-transparent border-none focus:ring-0 font-bold text-foreground"
                                     />
                                     <button
                                         onClick={() => setQuantity(quantity + 1)}
-                                        className="px-4 py-3 hover:text-primary transition-colors text-xl"
+                                        className="flex-1 px-4 py-3 hover:text-primary transition-colors text-xl"
                                     >+</button>
                                 </div>
                                 <button
                                     onClick={() => addToCart(product, quantity)}
-                                    className="flex-1 bg-primary text-primary-foreground font-bold text-sm uppercase tracking-widest py-4 px-8 hover:bg-accent hover:text-white transition-all shadow-md"
+                                    className="flex-1 bg-primary text-primary-foreground font-bold text-xs md:text-sm uppercase tracking-widest py-4 px-8 hover:bg-accent hover:text-white transition-all shadow-md active:scale-[0.98]"
                                 >
                                     Añadir al carrito
                                 </button>

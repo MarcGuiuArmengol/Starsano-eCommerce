@@ -279,29 +279,29 @@ const AdminDashboard: React.FC = () => {
     return (
         <div className="min-h-screen bg-background p-4 md:p-8">
             <div className="max-w-7xl mx-auto">
-                <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mb-12">
+                <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mb-8 md:mb-12">
                     <div>
                         <div className="flex items-center gap-4">
-                            <h1 className="text-4xl text-foreground font-heading">Panel de Control</h1>
+                            <h1 className="text-3xl md:text-4xl text-foreground font-heading uppercase tracking-widest">Admin</h1>
                         </div>
-                        <p className="text-secondary font-light mt-1">Gestión de tienda y administración</p>
+                        <p className="text-secondary font-light mt-1 text-sm">Gestión de tienda y administración</p>
                     </div>
-                    <div className="flex bg-white rounded-lg p-1 shadow-sm border border-background-contrast/5 overflow-x-auto max-w-full">
+                    <div className="flex bg-white rounded-lg p-1 shadow-sm border border-background-contrast/5 overflow-x-auto max-w-full custom-scrollbar">
                         <button
                             onClick={() => setActiveTab('orders')}
-                            className={`px-4 md:px-6 py-2 text-[10px] md:text-xs font-bold uppercase tracking-widest transition-all rounded-md whitespace-nowrap ${activeTab === 'orders' ? 'bg-primary text-white' : 'text-secondary hover:bg-background'}`}
+                            className={`px-6 py-2.5 text-[10px] md:text-xs font-bold uppercase tracking-widest transition-all rounded-md whitespace-nowrap ${activeTab === 'orders' ? 'bg-primary text-white shadow-md' : 'text-secondary hover:bg-background'}`}
                         >
                             Pedidos
                         </button>
                         <button
                             onClick={() => setActiveTab('products')}
-                            className={`px-4 md:px-6 py-2 text-[10px] md:text-xs font-bold uppercase tracking-widest transition-all rounded-md whitespace-nowrap ${activeTab === 'products' ? 'bg-primary text-white' : 'text-secondary hover:bg-background'}`}
+                            className={`px-6 py-2.5 text-[10px] md:text-xs font-bold uppercase tracking-widest transition-all rounded-md whitespace-nowrap ${activeTab === 'products' ? 'bg-primary text-white shadow-md' : 'text-secondary hover:bg-background'}`}
                         >
                             Productos
                         </button>
                         <button
                             onClick={() => setActiveTab('articles')}
-                            className={`px-4 md:px-6 py-2 text-[10px] md:text-xs font-bold uppercase tracking-widest transition-all rounded-md whitespace-nowrap ${activeTab === 'articles' ? 'bg-primary text-white' : 'text-secondary hover:bg-background'}`}
+                            className={`px-6 py-2.5 text-[10px] md:text-xs font-bold uppercase tracking-widest transition-all rounded-md whitespace-nowrap ${activeTab === 'articles' ? 'bg-primary text-white shadow-md' : 'text-secondary hover:bg-background'}`}
                         >
                             Journal
                         </button>
@@ -310,27 +310,27 @@ const AdminDashboard: React.FC = () => {
 
                 {activeTab === 'orders' && (
                     <>
-                        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-12">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-8 mb-8 md:mb-12">
                             <div className="bg-white p-6 rounded-xl shadow-sm border border-background-contrast/10">
-                                <span className="text-xs font-bold text-secondary uppercase tracking-widest block mb-2">Ventas Totales</span>
-                                <h3 className="text-3xl text-primary font-heading">${Array.isArray(orders) ? orders.reduce((acc, o) => acc + Number(o.total), 0).toFixed(2) : '0.00'}</h3>
+                                <span className="text-[10px] md:text-xs font-bold text-secondary uppercase tracking-widest block mb-1 md:mb-2">Ventas Totales</span>
+                                <h3 className="text-2xl md:text-3xl text-primary font-heading">${Array.isArray(orders) ? orders.reduce((acc, o) => acc + Number(o.total), 0).toFixed(2) : '0.00'}</h3>
                             </div>
                             <div className="bg-white p-6 rounded-xl shadow-sm border border-background-contrast/10">
-                                <span className="text-xs font-bold text-secondary uppercase tracking-widest block mb-2">Pedidos</span>
-                                <h3 className="text-3xl text-primary font-heading">{Array.isArray(orders) ? orders.length : 0}</h3>
+                                <span className="text-[10px] md:text-xs font-bold text-secondary uppercase tracking-widest block mb-1 md:mb-2">Pedidos</span>
+                                <h3 className="text-2xl md:text-3xl text-primary font-heading">{Array.isArray(orders) ? orders.length : 0}</h3>
                             </div>
                             <div className="bg-white p-6 rounded-xl shadow-sm border border-background-contrast/10">
-                                <span className="text-xs font-bold text-secondary uppercase tracking-widest block mb-2">Clientes</span>
-                                <h3 className="text-3xl text-primary font-heading">{Array.isArray(orders) ? new Set(orders.map(o => o.user_id)).size : 0}</h3>
+                                <span className="text-[10px] md:text-xs font-bold text-secondary uppercase tracking-widest block mb-1 md:mb-2">Clientes</span>
+                                <h3 className="text-2xl md:text-3xl text-primary font-heading">{Array.isArray(orders) ? new Set(orders.map(o => o.user_id)).size : 0}</h3>
                             </div>
                         </div>
 
                         <div className="bg-white rounded-xl shadow-sm border border-background-contrast/10 overflow-hidden">
                             <div className="px-6 py-4 border-b border-background-contrast/10 flex justify-between items-center bg-background/30">
-                                <h3 className="text-lg font-bold text-foreground">Gestión de Pedidos</h3>
+                                <h3 className="text-base md:text-lg font-bold text-foreground">Gestión de Pedidos</h3>
                             </div>
-                            <div className="overflow-x-auto">
-                                <table className="w-full text-left text-sm">
+                            <div className="overflow-x-auto custom-scrollbar">
+                                <table className="w-full text-left text-sm min-w-[700px]">
                                     <thead className="bg-background/50 text-secondary uppercase text-[10px] font-bold tracking-widest">
                                         <tr>
                                             <th className="px-6 py-4">ID</th>

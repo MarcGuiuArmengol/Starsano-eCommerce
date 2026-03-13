@@ -127,21 +127,29 @@ def send_alert_email(user_id: str, message_text: str) -> bool:
 
 def process_logic(user_id: str, message_text: str, email: Optional[str] = None) -> Dict[str, Any]:
     thread_id = memory_store.get_or_create_thread(user_id)
-    memory_store.append_message(thread_id, "user", message_text)
     summary, slots = memory_store.load_thread_state(thread_id)
+    history_text = memory_store.get_history_as_text(thread_id, limit=8)
     
-    intention = classify_intention(message_text, context=summary)
+    # Añadir mensaje del usuario a la base de datos ANTES de procesar para que salga en el historial si hace falta
+    # Pero aquí lo pasamos por separado a la lógica
+    intention = classify_intention(message_text, context=summary, history=history_text)
     print(f"[CLASSIFIED] User {user_id}: intention = {intention}")
     
     result = route_message(intention, message_text, user_id, thread_id, slots, email)
+    
     response_text = result.get("response_text") if isinstance(result, dict) else "Lo siento, tuve un problema procesando tu mensaje."
+    new_slots = result.get("slots", slots) if isinstance(result, dict) else slots
     notify_email = result.get("notify_email") if isinstance(result, dict) else False
 
     if notify_email:
         send_alert_email(user_id, message_text)
     
+    # Persistir mensajes y nuevo estado
+    memory_store.append_message(thread_id, "user", message_text)
     if response_text:
         memory_store.append_message(thread_id, "assistant", response_text)
+    
+    memory_store.update_thread_state(thread_id, summary, new_slots)
     
     return {"response_text": response_text, "intention": intention}
 
@@ -190,7 +198,10 @@ async def chat_web(request: ChatRequest):
     Endpoint for the web frontend chat widget.
     """
     res = process_logic(request.session_id, request.message, request.email)
-    return ChatResponse(response=res["response_text"], session_id=request.session_id)
+    return ChatResponse(
+        response=res["response_text"], 
+        session_id=request.session_id
+    )
 
 @app.get("/health")
 def health():

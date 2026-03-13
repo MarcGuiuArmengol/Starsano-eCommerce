@@ -18,6 +18,16 @@ const ChatWidget: React.FC = () => {
     const sessionId = useRef(Math.random().toString(36).substring(7));
     const { user } = useUser();
 
+    // Initial greeting
+    useEffect(() => {
+        if (messages.length === 0) {
+            setMessages([{
+                role: 'assistant',
+                content: '¡Hola! Soy tu asistente de IA de Starsano. ¿En qué puedo ayudarte hoy?'
+            }]);
+        }
+    }, []);
+
     const scrollToBottom = () => {
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     };
@@ -26,17 +36,22 @@ const ChatWidget: React.FC = () => {
         scrollToBottom();
     }, [messages]);
 
-    const handleSend = async () => {
-        if (!inputText.trim() || isLoading) return;
+    const handleSend = async (forcedMessage?: string) => {
+        const textToSend = forcedMessage || inputText;
+        if (!textToSend.trim() || isLoading) return;
 
-        const userMessage = inputText.trim();
-        setInputText('');
+        const userMessage = textToSend.trim();
+        if (!forcedMessage) setInputText('');
+        
         setMessages(prev => [...prev, { role: 'user', content: userMessage }]);
         setIsLoading(true);
 
         try {
             const data = await api.chat(userMessage, sessionId.current, user?.email);
-            setMessages(prev => [...prev, { role: 'assistant', content: data.response }]);
+            setMessages(prev => [...prev, { 
+                role: 'assistant', 
+                content: data.response
+            }]);
         } catch (error) {
             console.error('Chat error:', error);
             setMessages(prev => [...prev, {
@@ -52,60 +67,66 @@ const ChatWidget: React.FC = () => {
         // First, clean up all double asterisks from the text
         const cleanContent = content.replace(/\*\*/g, '');
 
+        // Basic line splitting for bullet points
+        const lines = cleanContent.split('\n');
+        
         const linkRegex = /\[(.*?)\]\((.*?)\)/g;
-        const parts = [];
-        let lastIndex = 0;
-        let match;
 
-        while ((match = linkRegex.exec(cleanContent)) !== null) {
-            // Text before match
-            if (match.index > lastIndex) {
-                parts.push(cleanContent.substring(lastIndex, match.index));
+        return lines.map((line, lineIdx) => {
+            const parts = [];
+            let lastIndex = 0;
+            let match;
+
+            while ((match = linkRegex.exec(line)) !== null) {
+                if (match.index > lastIndex) {
+                    parts.push(line.substring(lastIndex, match.index));
+                }
+
+                const [full, text, url] = match;
+                // If it's internal, parse slightly better
+                const isInternal = url.startsWith('/') || url.includes('localhost') || url.includes('starsano.com');
+                const path = isInternal ? (url.includes('#') ? url.split('#')[1] : url) : url;
+
+                parts.push(
+                    <span key={match.index} className="inline-block my-1">
+                        {isInternal ? (
+                            <button
+                                onClick={() => navigate(path)}
+                                className="inline-flex items-center gap-1 bg-primary/10 text-primary px-3 py-1 rounded-full text-[11px] font-bold hover:bg-primary hover:text-white transition-all border border-primary/20"
+                            >
+                                {text}
+                                <span className="material-symbols-outlined text-[10px]">arrow_forward</span>
+                            </button>
+                        ) : (
+                            <a
+                                href={url}
+                                className="inline-flex items-center gap-1 bg-primary/10 text-primary px-3 py-1 rounded-full text-[11px] font-bold hover:bg-primary hover:text-white transition-all border border-primary/20 no-underline"
+                                target="_blank"
+                                rel="noopener noreferrer"
+                            >
+                                {text}
+                                <span className="material-symbols-outlined text-[10px]">open_in_new</span>
+                            </a>
+                        )}
+                    </span>
+                );
+
+                lastIndex = match.index + full.length;
             }
 
-            // The link as a styled block button with spacing
-            const [full, text, url] = match;
-            const isInternal = url.startsWith('/');
+            if (lastIndex < line.length) {
+                parts.push(line.substring(lastIndex));
+            }
 
-            parts.push(
-                <div key={match.index} className="my-3">
-                    {isInternal ? (
-                        <button
-                            onClick={() => navigate(url)}
-                            className="inline-flex items-center gap-2 bg-primary text-white px-5 py-2.5 rounded-sm text-[10px] font-bold uppercase tracking-widest hover:bg-accent transition-all shadow-md"
-                        >
-                            {text}
-                            <span className="material-symbols-outlined text-sm">arrow_forward</span>
-                        </button>
-                    ) : (
-                        <a
-                            href={url}
-                            className="inline-flex items-center gap-2 bg-primary text-white px-5 py-2.5 rounded-sm text-[10px] font-bold uppercase tracking-widest hover:bg-accent transition-all shadow-md no-underline"
-                            target="_blank"
-                            rel="noopener noreferrer"
-                        >
-                            {text}
-                            <span className="material-symbols-outlined text-sm">open_in_new</span>
-                        </a>
-                    )}
+            const isBullet = line.trim().startsWith('- ') || line.trim().startsWith('• ');
+
+            return (
+                <div key={lineIdx} className={`${isBullet ? 'pl-4 relative mb-1' : 'mb-1'}`}>
+                    {isBullet && <span className="absolute left-0 top-0 text-primary">•</span>}
+                    <span className="leading-relaxed">{parts.map((p, i) => <React.Fragment key={i}>{p}</React.Fragment>)}</span>
                 </div>
             );
-
-            lastIndex = match.index + full.length;
-        }
-
-        // Remaining text
-        if (lastIndex < cleanContent.length) {
-            parts.push(cleanContent.substring(lastIndex));
-        }
-
-        return parts.length > 0 ? (
-            <div className="flex flex-col">
-                {parts.map((p, i) => (
-                    <span key={i} className="leading-relaxed whitespace-pre-wrap">{p}</span>
-                ))}
-            </div>
-        ) : <span className="leading-relaxed whitespace-pre-wrap">{cleanContent}</span>;
+        });
     };
 
     return (
@@ -134,29 +155,22 @@ const ChatWidget: React.FC = () => {
 
                     {/* Messages Area */}
                     <div className="flex-grow p-4 overflow-y-auto bg-background/30 flex flex-col gap-4">
-                        <div className="flex items-start gap-2 max-w-[85%]">
-                            <div className="w-8 h-8 rounded-full bg-brand-soft flex items-center justify-center shrink-0">
-                                <span className="material-symbols-outlined text-white text-sm">smart_toy</span>
-                            </div>
-                            <div className="bg-white p-3 rounded-2xl rounded-tl-none border border-border text-sm text-foreground shadow-sm">
-                                ¡Hola! Soy tu asistente de IA de Starsano. ¿En qué puedo ayudarte hoy?
-                            </div>
-                        </div>
-
                         {messages.map((msg, i) => (
-                            <div key={i} className={`flex items-start gap-2 max-w-[85%] ${msg.role === 'user' ? 'ml-auto flex-row-reverse' : ''}`}>
-                                {msg.role === 'assistant' && (
-                                    <div className="w-8 h-8 rounded-full bg-brand-soft flex items-center justify-center shrink-0">
-                                        <span className="material-symbols-outlined text-white text-sm">smart_toy</span>
+                            <React.Fragment key={i}>
+                                <div className={`flex items-start gap-2 max-w-[85%] ${msg.role === 'user' ? 'ml-auto flex-row-reverse' : ''}`}>
+                                    {msg.role === 'assistant' && (
+                                        <div className="w-8 h-8 rounded-full bg-brand-soft flex items-center justify-center shrink-0">
+                                            <span className="material-symbols-outlined text-white text-sm">smart_toy</span>
+                                        </div>
+                                    )}
+                                    <div className={`p-3 rounded-2xl text-sm shadow-sm ${msg.role === 'user'
+                                        ? 'bg-primary text-white rounded-tr-none'
+                                        : 'bg-white border border-border text-foreground rounded-tl-none'
+                                        }`}>
+                                        {renderContent(msg.content)}
                                     </div>
-                                )}
-                                <div className={`p-3 rounded-2xl text-sm shadow-sm ${msg.role === 'user'
-                                    ? 'bg-primary text-white rounded-tr-none'
-                                    : 'bg-white border border-border text-foreground rounded-tl-none'
-                                    }`}>
-                                    {renderContent(msg.content)}
                                 </div>
-                            </div>
+                            </React.Fragment>
                         ))}
 
                         {isLoading && (

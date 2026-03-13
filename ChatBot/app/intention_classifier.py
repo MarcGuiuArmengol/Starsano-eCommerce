@@ -11,19 +11,19 @@ load_dotenv()
 
 # Inicializar el modelo OpenAI
 llm = ChatOpenAI(
-    model="gpt-3.5-turbo",
+    model="gpt-4o-mini",
     api_key=os.environ.get("OPENAI_API_KEY"),
     temperature=0
 )
 
 assistant_llm = ChatOpenAI(
-    model=os.environ.get("GENERAL_QUESTION_MODEL", "gpt-4o-mini"),
+    model="gpt-4o-mini",
     api_key=os.environ.get("OPENAI_API_KEY"),
     temperature=0.4
 )
 
 angry_llm = ChatOpenAI(
-    model=os.environ.get("ANGRY_USER_MODEL", "gpt-4o-mini"),
+    model="gpt-4o-mini",
     api_key=os.environ.get("OPENAI_API_KEY"),
     temperature=0.3
 )
@@ -39,6 +39,9 @@ product_search
 general_question
 order_tracking
 need_human
+
+Reglas Críticas de Selección:
+- Si el mensaje es ambiguo o muy corto (ej: "ahora?", "y?", "repetir", "más info") y el historial muestra que se estaba hablando de un pedido, selecciona order_tracking.
 
 Definiciones estrictas:
 
@@ -123,17 +126,16 @@ PRODUCT_SEARCH_PROMPT = """You are the Starsano AI Product Expert. Your goal is 
 
 ### Personality & Tone:
 - Answer in friendly, warm Spanish (tuteando).
-- **CONVERSATIONAL FLOW**: Do not just list products. Use a cohesive and "linked" narrative. Use transitions like "Para lo que buscas, te sugiero...", "También podría interesarte...", or "Si prefieres algo más específico...".
-- Your goal is to sound like a boutique shop assistant, not a database search result.
+- **CONVERSATIONAL FLOW**: Use a cohesive and "linked" narrative.
+- Your goal is to sound like a boutique shop assistant, not a database result.
 
 ### Rules:
 - Use ONLY the product information provided.
-- For each product, you MUST provide a direct clickable link using markdown: [Ver producto](http://localhost:8080/#/product/[ID])
-- Mention price (in MXN, use '$') and a brief benefit in the flow of the sentence.
-- **FORMATTING**: Use clean paragraphs. Start names in UPPERCASE without asterisks. 
-- Avoid using double asterisks (**) for bolding.
-- If no products are found, apologize naturally and offer to help with something else.
-- Keep it concise but elegant (max 2-3 products).
+- For each product, you MUST provide a direct clickable link using markdown: [Ver producto]({frontend_url}#/product/[ID])
+- Mention price (in MXN, use '$') and a brief benefit.
+- **FORMATTING**: Use clean paragraphs and bullet points for lists.
+- Avoid using double asterisks (**) for bolding, use simple text.
+- If no products are found, apologize naturally.
 
 ### Found Products:
 {found_products}
@@ -141,13 +143,15 @@ PRODUCT_SEARCH_PROMPT = """You are the Starsano AI Product Expert. Your goal is 
 User message: {user_message}
 Context: {context}
 
-Response (Conversational & Natural Spanish):"""
+Response (Natural Spanish):"""
 
-ORDER_INFO_PROMPT = """Extrae el ID del pedido y el EMAIL del usuario del siguiente mensaje.
-Si el usuario dice "mi pedido es el 123", el ID es 123.
-Si no proporciona el email en este mensaje, búscalo contextualmente.
-Responde SOLO en formato JSON: {{"order_id": "valor", "email": "valor"}}.
-Si no encuentras alguno, pon null.
+ORDER_INFO_PROMPT = """Extrae el ID del pedido y el EMAIL del usuario del mensaje proporcionado.
+
+REGLAS ESTRICTAS:
+1. SOLO extrae si el valor está presente en el mensaje.
+2. NUNCA inventes números como "123", "0", "1" si no están en el texto.
+3. Si el usuario dice "ese", "el mío", "ahora", deja order_id como null (se usará la memoria).
+4. Responde SOLO en JSON: {{"order_id": "valor", "email": "valor"}}.
 
 Mensaje: {message}
 JSON:"""
@@ -181,9 +185,10 @@ def extract_search_keywords(message: str) -> str:
         print(f"Error extrayendo keywords: {e}")
         return message
 
-def classify_intention(message: str, context: str = "") -> Literal["product_search", "general_question", "order_tracking", "need_human"]:
+def classify_intention(message: str, context: str = "", history: str = "") -> Literal["product_search", "general_question", "order_tracking", "need_human"]:
     try:
-        prompt = prompt_template.format(message=message, context=context)
+        combined_context = f"{context}\n\nHistorial reciente:\n{history}" if history else context
+        prompt = prompt_template.format(message=message, context=combined_context)
         response = llm.invoke(prompt)
         intention = response.content.strip().lower()
         valid_intentions = ["product_search", "general_question", "order_tracking", "need_human"]
@@ -201,14 +206,16 @@ def generate_product_search_response(user_message: str, products_data: List[Dict
         if not products_data:
             return "Lo siento, no he podido encontrar productos que coincidan con tu búsqueda. ¿Buscas algo más en específico?"
         
+        frontend_url = os.environ.get("FRONTEND_URL", "http://localhost:8080/")
         products_str = ""
         for p in products_data:
-            products_str += f"- {p['name']} (${p['price']} MXN): {p['description'][:60]}... URL: http://localhost:8080/#/product/{p['id']}\n"
+            products_str += f"- {p['name']} (${p['price']} MXN): {p['description'][:60]}... URL: {frontend_url}#/product/{p['id']}\n"
         
         prompt = PRODUCT_SEARCH_PROMPT.format(
             found_products=products_str,
             user_message=user_message,
-            context=context
+            context=context,
+            frontend_url=frontend_url
         )
         response = assistant_llm.invoke(prompt)
         return response.content.strip()
@@ -240,20 +247,36 @@ def handle_product_search(message: str, user_id: str, thread_id: str, slots: Dic
     # 2. Si no hay resultados semánticos, fallback a keywords
     if not products:
         keywords = extract_search_keywords(message)
-        print(f"[SEARCH-FALLBACK] Keywords: {keywords}")
         products = db_client.search_products(keywords)
     
     # 3. Generar respuesta
     response_text = generate_product_search_response(message, products)
-    return {"status": "handled", "intention": "product_search", "response_text": response_text}
+    
+    return {
+        "status": "handled", 
+        "intention": "product_search", 
+        "response_text": response_text, 
+        "slots": slots
+    }
 
 def handle_general_question(message: str, user_id: str, thread_id: str, slots: Dict[str, Any], session_email: Optional[str] = None) -> dict:
     response_text = generate_general_question_response(message)
-    return {"status": "handled", "intention": "general_question", "response_text": response_text}
+    return {
+        "status": "handled", 
+        "intention": "general_question", 
+        "response_text": response_text, 
+        "slots": slots
+    }
 
 def handle_need_human(message: str, user_id: str, thread_id: str, slots: Dict[str, Any], session_email: Optional[str] = None) -> dict:
     response_text = generate_need_human_response(message)
-    return {"status": "handled", "intention": "need_human", "notify_email": True, "response_text": response_text}
+    return {
+        "status": "handled", 
+        "intention": "need_human", 
+        "notify_email": True, 
+        "response_text": response_text, 
+        "slots": slots
+    }
 
 def handle_order_tracking(message: str, user_id: str, thread_id: str, slots: Dict[str, Any], session_email: Optional[str] = None) -> dict:
     try:
@@ -277,16 +300,34 @@ def handle_order_tracking(message: str, user_id: str, thread_id: str, slots: Dic
             status_friendly = status_map.get(order['status'], order['status'])
             return f"• **Pedido #{order['id']}**: {status_friendly} (${order['total']} MXN)"
 
-        # 1. Si el usuario pregunta genéricamente por "mis pedidos" o "mi pedido"
-        is_generic_query = any(kw in message.lower() for kw in ["donde esta mi pedido", "como va mi pedido", "mis pedidos", "mi compra", "estado de mi pedido"])
+        # 1. Si el usuario pregunta genéricamente o usa conectores de seguimiento
+        follow_up_keywords = ["ahora", "y?", "mas info", "dime mas", "continuar", "repetir", "el mio"]
+        generic_status_keywords = ["donde esta mi pedido", "como va mi pedido", "mis pedidos", "mi compra", "estado de mi pedido"]
         
-        if is_generic_query:
+        is_generic_query = any(kw in message.lower() for kw in generic_status_keywords + follow_up_keywords)
+        is_very_short = len(message.strip()) < 10
+        
+        if is_generic_query or is_very_short:
+            # Primero ver si tenemos un order_id en slots que sea útil
+            cached_order_id = slots.get("order_id")
+            if cached_order_id:
+                order = db_client.get_order_status(cached_order_id, session_email)
+                if order:
+                    status_friendly = status_map.get(order['status'], order['status'])
+                    return {
+                        "status": "handled",
+                        "intention": "order_tracking",
+                        "response_text": f"Siguiendo con tu pedido **#{cached_order_id}**:\n\nEstado actual: **{status_friendly}**\nTotal: **${order['total']} MXN**\n\n¿Necesitas saber algo más sobre este pedido?",
+                        "slots": slots
+                    }
+
             orders = db_client.get_latest_orders_by_email(session_email, limit=3)
             if not orders:
                 return {
                     "status": "handled",
                     "intention": "order_tracking",
-                    "response_text": "No he encontrado ningún pedido asociado a tu cuenta. ¡Anímate a hacer tu primera compra! 😊"
+                    "response_text": "No he encontrado ningún pedido asociado a tu cuenta. ¡Anímate a hacer tu primera compra! 😊",
+                    "slots": slots
                 }
             
             if len(orders) > 1:
@@ -294,29 +335,51 @@ def handle_order_tracking(message: str, user_id: str, thread_id: str, slots: Dic
                 return {
                     "status": "handled",
                     "intention": "order_tracking",
-                    "response_text": f"He encontrado tus últimos pedidos:\n\n{orders_list}\n\n¿Quieres que te dé más detalles sobre alguno en particular? (solo dime el número del pedido)."
+                    "response_text": f"He encontrado tus últimos pedidos:\n\n{orders_list}\n\n¿Quieres que te dé más detalles sobre alguno en particular? (solo dime el número del pedido).",
+                    "slots": slots
                 }
             
             # Solo tiene uno
             order = orders[0]
+            slots["order_id"] = str(order['id'])
             status_friendly = status_map.get(order['status'], order['status'])
             return {
                 "status": "handled",
                 "intention": "order_tracking",
-                "response_text": f"He encontrado tu pedido **#{order['id']}**.\n\nEstado actual: **{status_friendly}**\nTotal: **${order['total']} MXN**\nFecha de compra: {order['created_at'].strftime('%d/%m/%Y')}\n\n¿En qué más te puedo ayudar?"
+                "response_text": f"He encontrado tu pedido **#{order['id']}**.\n\nEstado actual: **{status_friendly}**\nTotal: **${order['total']} MXN**\nFecha de compra: {order['created_at'].strftime('%d/%m/%Y')}\n\n¿En qué más te puedo ayudar?",
+                "slots": slots
             }
 
         # 2. Intentar extraer ID si es una consulta específica
         prompt = order_info_prompt_template.format(message=message)
         response = llm.invoke(prompt)
-        data = json.loads(response.content.strip())
+        try:
+            data = json.loads(response.content.strip())
+        except:
+            data = {}
+            
         order_id = data.get("order_id")
+        
+        # Sanitización inteligente: si el order_id extraído NO está en el mensaje original, es una alucinación (ej: "123")
+        # Excepto si coincide con lo que ya tenemos en slots (memoria)
+        if order_id and str(order_id) not in message:
+            # El LLM ha inventado un ID. Lo ignoramos.
+            order_id = None
+        
+        # Si sigue siendo "123" (placeholder común), lo descartamos
+        if order_id == "123":
+            order_id = None
+
+        # Si la extracción falló o fue descartada, pero tenemos un ID en memoria, USAR la memoria
+        if not order_id and slots.get("order_id"):
+            order_id = slots.get("order_id")
 
         if not order_id:
-             return {
+            return {
                 "status": "handled",
                 "intention": "order_tracking",
-                "response_text": "¿Podrías indicarme el **ID de tu pedido** para darte información detallada? (ej. el número que aparece en tu confirmación)."
+                "response_text": "¿Podrías indicarme el **ID de tu pedido** para darte información detallada? (ej. el número que aparece en tu confirmación).",
+                "slots": slots
             }
         
         # Verificar propiedad: buscar el pedido ESPECÍFICO para este email
@@ -325,21 +388,27 @@ def handle_order_tracking(message: str, user_id: str, thread_id: str, slots: Dic
             return {
                 "status": "handled",
                 "intention": "order_tracking",
-                "response_text": f"Lo siento, no pude encontrar ningún pedido con el ID **{order_id}** asociado a tu cuenta actual. Por favor, verifica el número e intenta de nuevo."
+                "response_text": f"Lo siento, no pude encontrar ningún pedido con el ID **{order_id}** asociado a tu cuenta actual. Por favor, verifica el número e intenta de nuevo.",
+                "slots": slots
             }
+        
+        # Guardar en slots para memoria
+        slots["order_id"] = str(order_id)
         
         status_friendly = status_map.get(order['status'], order['status'])
         return {
             "status": "handled",
             "intention": "order_tracking",
-            "response_text": f"Aquí tienes los detalles del pedido **#{order_id}**.\n\nEstado actual: **{status_friendly}**\nTotal: **${order['total']} MXN**\nFecha de compra: {order['created_at'].strftime('%d/%m/%Y')}\n\n¿Deseas saber algo más?"
+            "response_text": f"Aquí tienes los detalles del pedido **#{order_id}**.\n\nEstado actual: **{status_friendly}**\nTotal: **${order['total']} MXN**\nFecha de compra: {order['created_at'].strftime('%d/%m/%Y')}\n\n¿Deseas saber algo más?",
+            "slots": slots
         }
     except Exception as e:
         print(f"Error en handle_order_tracking: {e}")
         return {
             "status": "handled",
             "intention": "order_tracking",
-            "response_text": "Tuve un pequeño problema consultando tu pedido, pero puedes contactarnos directamente al +52 56 3082 0401 y te ayudaremos de inmediato."
+            "response_text": "Tuve un pequeño problema consultando tu pedido, pero puedes contactarnos directamente al +52 56 3082 0401 y te ayudaremos de inmediato.",
+            "slots": slots
         }
 
 def route_message(intention: str, message: str, user_id: str, thread_id: str, slots: Dict[str, Any], session_email: Optional[str] = None) -> dict:

@@ -78,7 +78,7 @@ const Checkout: React.FC = () => {
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                 <h1 className="text-3xl font-heading font-bold mb-8 text-center uppercase tracking-widest">Finalizar Compra</h1>
 
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-12">
                     {/* Form */}
                     <div className="space-y-8">
                         {/* Contact */}
@@ -134,7 +134,7 @@ const Checkout: React.FC = () => {
                     </div>
 
                     {/* Order Summary */}
-                    <div className="bg-white p-8 h-fit border border-background-contrast/20 sticky top-24">
+                    <div className="bg-white p-6 md:p-8 h-fit border border-background-contrast/20 lg:sticky lg:top-24">
                         <h2 className="text-lg font-bold mb-6 uppercase tracking-wider border-b border-background-contrast/20 pb-4">Resumen del pedido</h2>
                         <div className="space-y-4 mb-6 max-h-[400px] overflow-y-auto custom-scrollbar">
                             {cart.map(item => (

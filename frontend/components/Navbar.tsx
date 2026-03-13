@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useCart } from '../context/CartContext';
 import { useUser } from '../context/UserContext';
@@ -13,13 +13,31 @@ const Navbar: React.FC = () => {
 
   const isHome = location.pathname === '/';
 
+  // Close mobile menu on route change
+  useEffect(() => {
+    setIsMobileMenuOpen(false);
+    setIsUserMenuOpen(false);
+  }, [location.pathname]);
+
+  // Lock scroll when menu is open
+  useEffect(() => {
+    if (isMobileMenuOpen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = 'unset';
+    }
+    return () => {
+      document.body.style.overflow = 'unset';
+    };
+  }, [isMobileMenuOpen]);
+
   return (
-    <header className="sticky top-0 z-50 w-full bg-white/90 backdrop-blur-md border-b border-primary/5 shadow-sm transition-all duration-300">
+    <header className={`sticky top-0 w-full bg-white/90 backdrop-blur-md border-b border-primary/5 shadow-sm transition-all duration-300 ${isMobileMenuOpen ? 'z-[2000]' : 'z-50'}`}>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex h-20 items-center justify-between gap-4">
           {/* Logo */}
           <Link to="/" className="flex items-center gap-2 shrink-0 group">
-            <img src={logo} alt="Starsano Logo" className="h-12 w-auto object-contain transition-transform duration-300 group-hover:scale-105" />
+            <img src={logo} alt="Starsano Logo" className="h-10 md:h-12 w-auto object-contain transition-transform duration-300 group-hover:scale-105" />
           </Link>
 
           {/* Desktop Menu */}
@@ -34,7 +52,7 @@ const Navbar: React.FC = () => {
           </nav>
 
           {/* Search & Icons */}
-          <div className="flex items-center gap-4 flex-1 justify-end">
+          <div className="flex items-center gap-1 sm:gap-4 flex-1 justify-end">
             <div className="hidden md:flex relative max-w-[200px] w-full group">
               <input
                 className="w-full bg-transparent border-b border-secondary/20 py-1.5 pl-0 pr-6 text-xs focus:border-accent focus:ring-0 text-foreground placeholder:text-secondary/50 transition-all font-medium"
@@ -52,7 +70,7 @@ const Navbar: React.FC = () => {
                 {user ? (
                   <>
                     <span className="material-symbols-outlined">person</span>
-                    <span className="hidden sm:inline text-[10px] font-bold uppercase tracking-wider">{user.email.split('@')[0]}</span>
+                    <span className="hidden lg:inline text-[10px] font-bold uppercase tracking-wider">{user.email.split('@')[0]}</span>
                   </>
                 ) : (
                   <Link to="/login" className="material-symbols-outlined">person</Link>
@@ -89,33 +107,92 @@ const Navbar: React.FC = () => {
             </button>
 
             <button
-              className="lg:hidden p-2 text-foreground"
-              onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+              className="lg:hidden p-2 text-foreground flex items-center justify-center relative z-[200] touch-manipulation"
+              aria-label="Toggle Menu"
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                setIsMobileMenuOpen(!isMobileMenuOpen);
+              }}
             >
-              <span className="material-symbols-outlined">menu</span>
+              <span className="material-symbols-outlined text-3xl font-bold">
+                {isMobileMenuOpen ? 'close' : 'menu'}
+              </span>
             </button>
           </div>
         </div>
-
-        {/* Mobile Menu */}
-        {isMobileMenuOpen && (
-          <div className="lg:hidden py-6 border-t border-primary/5 animate-fadeIn bg-white absolute left-0 right-0 shadow-xl px-4 flex flex-col gap-4">
-            <nav className="flex flex-col gap-4">
-              <Link to="/" onClick={() => setIsMobileMenuOpen(false)} className="text-sm font-bold text-foreground uppercase tracking-widest">Inicio</Link>
-              <Link to="/shop" onClick={() => setIsMobileMenuOpen(false)} className="text-sm font-bold text-secondary uppercase tracking-widest">Tienda</Link>
-              <Link to="/blog" onClick={() => setIsMobileMenuOpen(false)} className="text-sm font-bold text-secondary uppercase tracking-widest">Journal</Link>
-              <Link to="/contact" onClick={() => setIsMobileMenuOpen(false)} className="text-sm font-bold text-secondary uppercase tracking-widest">Contacto</Link>
-            </nav>
-            <div className="pt-4 border-t border-primary/5">
-              <input
-                className="w-full bg-background/50 border border-secondary/20 py-3 px-4 text-sm rounded-none focus:border-accent focus:ring-0"
-                type="text"
-                placeholder="Buscar productos..."
-              />
-            </div>
-          </div>
-        )}
       </div>
+
+      {/* Mobile Menu Overlay - Move outside of max-w container but inside header */}
+      {isMobileMenuOpen && (
+        <div 
+          className="lg:hidden fixed inset-0 bg-white flex flex-col h-screen w-screen overflow-hidden z-[9999]"
+          onClick={(e) => e.stopPropagation()}
+        >
+          {/* Mobile Header */}
+          <div className="flex h-20 items-center justify-between px-4 border-b border-primary/5 shadow-sm shrink-0">
+            <Link to="/" className="flex items-center gap-2" onClick={() => setIsMobileMenuOpen(false)}>
+              <img src={logo} alt="Starsano Logo" className="h-10 w-auto object-contain" />
+            </Link>
+            <button
+              onClick={() => setIsMobileMenuOpen(false)}
+              className="p-2 text-foreground h-12 w-12 flex items-center justify-center bg-background/50 rounded-full"
+            >
+              <span className="material-symbols-outlined text-3xl">close</span>
+            </button>
+          </div>
+
+          {/* Nav Links */}
+          <nav className="flex-1 px-6 py-8 flex flex-col gap-1 overflow-y-auto bg-white">
+            <Link 
+              to="/" 
+              className="block w-full py-6 text-3xl font-black text-primary uppercase tracking-[0.1em] border-b border-primary/10 active:bg-primary/5 transition-colors"
+              onClick={() => setIsMobileMenuOpen(false)}
+            >
+              Inicio
+            </Link>
+            <Link 
+              to="/shop" 
+              className="block w-full py-6 text-3xl font-black text-secondary uppercase tracking-[0.1em] border-b border-primary/10 active:bg-primary/5 transition-colors"
+              onClick={() => setIsMobileMenuOpen(false)}
+            >
+              Tienda
+            </Link>
+            <Link 
+              to="/blog" 
+              className="block w-full py-6 text-3xl font-black text-secondary uppercase tracking-[0.1em] border-b border-primary/10 active:bg-primary/5 transition-colors"
+              onClick={() => setIsMobileMenuOpen(false)}
+            >
+              Journal
+            </Link>
+            <Link 
+              to="/contact" 
+              className="block w-full py-6 text-3xl font-black text-secondary uppercase tracking-[0.1em] border-b border-primary/10 active:bg-primary/5 transition-colors"
+              onClick={() => setIsMobileMenuOpen(false)}
+            >
+              Contacto
+            </Link>
+            {user?.role === 'admin' && (
+              <Link 
+                to="/admin" 
+                className="block w-full py-6 text-3xl font-black text-accent uppercase tracking-[0.1em] border-b border-accent/20 active:bg-accent/5 transition-colors"
+                onClick={() => setIsMobileMenuOpen(false)}
+              >
+                Admin
+              </Link>
+            )}
+
+            <div className="mt-auto py-8 flex flex-col items-center gap-6 border-t border-primary/5">
+              <p className="text-[10px] text-primary/60 font-black uppercase tracking-[0.2em]">Bienvenido a Starsano</p>
+              <div className="flex justify-center gap-10">
+                <span className="material-symbols-outlined text-primary/40 text-3xl">eco</span>
+                <span className="material-symbols-outlined text-primary/40 text-3xl">verified</span>
+                <span className="material-symbols-outlined text-primary/40 text-3xl">spa</span>
+              </div>
+            </div>
+          </nav>
+        </div>
+      )}
     </header>
   );
 };
