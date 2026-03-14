@@ -284,5 +284,13 @@ export const api = {
         });
         if (!response.ok) throw new Error('Failed to generate article');
         return response.json();
+    },
+    // ADMIN - NEWSLETTER
+    adminGetNewsletterSubscribers: async (token: string) => {
+        const response = await fetch(`${API_BASE_URL}/api/admin/newsletter`, {
+            headers: { 'Authorization': `Bearer ${token}` },
+        });
+        if (!response.ok) throw new Error('Failed to fetch newsletter subscribers');
+        return response.json();
     }
 };

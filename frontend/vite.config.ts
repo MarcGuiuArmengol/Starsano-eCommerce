@@ -17,6 +17,10 @@ export default defineConfig(({ mode }) => {
           target: 'http://chatbot:8000',
           changeOrigin: true,
           rewrite: (path) => path.replace(/^\/chat_api/, '')
+        },
+        '/uploads': {
+          target: 'http://backend:3000',
+          changeOrigin: true
         }
       }
     },

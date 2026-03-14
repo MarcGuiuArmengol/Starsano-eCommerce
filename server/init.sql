@@ -18,7 +18,7 @@ CREATE TABLE IF NOT EXISTS products (
     name VARCHAR(255) UNIQUE NOT NULL,
     description TEXT,
     price DECIMAL(10, 2) NOT NULL,
-    image TEXT,
+    images TEXT[] DEFAULT '{}',
     category VARCHAR(100), -- Keeping for temporary backward compatibility
     category_id INTEGER REFERENCES categories(id),
     badges TEXT[], -- Keeping for temporary backward compatibility

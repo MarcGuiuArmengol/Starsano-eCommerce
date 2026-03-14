@@ -164,7 +164,8 @@ app.get('/api/products', async (req: Request, res: Response) => {
             price: Number(row.price),
             rating: Number(row.avg_rating),
             review_count: Number(row.review_count),
-            badges: row.badges || []
+            badges: row.badges || [],
+            images: row.images || []
         }));
         res.json(products);
     } catch (err: any) {
@@ -202,7 +203,8 @@ app.get('/api/products/:id', async (req: Request, res: Response) => {
             price: Number(result.rows[0].price),
             rating: Number(result.rows[0].avg_rating),
             review_count: Number(result.rows[0].review_count),
-            badges: result.rows[0].badges || []
+            badges: result.rows[0].badges || [],
+            images: result.rows[0].images || []
         };
         res.json(product);
     } catch (err: any) {
@@ -478,12 +480,12 @@ app.patch('/api/admin/orders/:id/status', authenticateToken, isAdmin, async (req
 
 // ADMIN PRODUCT CRUD
 app.post('/api/admin/products', authenticateToken, isAdmin, async (req: Request, res: Response) => {
-    const { name, price, description, image, category, badges, rating } = req.body;
+    const { name, price, description, images, category, badges, rating } = req.body;
     try {
         const result = await pool.query(
-            `INSERT INTO products (name, price, description, image, category, badges, rating)
+            `INSERT INTO products (name, price, description, images, category, badges, rating)
              VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`,
-            [name, price, description, image, category || '', badges || [], rating || 0]
+            [name, price, description, images || [], category || '', badges || [], rating || 0]
         );
         res.status(201).json(result.rows[0]);
     } catch (err) {
@@ -494,12 +496,12 @@ app.post('/api/admin/products', authenticateToken, isAdmin, async (req: Request,
 
 app.put('/api/admin/products/:id', authenticateToken, isAdmin, async (req: Request, res: Response) => {
     const { id } = req.params;
-    const { name, price, description, image, category, badges, rating } = req.body;
+    const { name, price, description, images, category, badges, rating } = req.body;
     try {
         const result = await pool.query(
-            `UPDATE products SET name=$1, price=$2, description=$3, image=$4, category=$5, badges=$6, rating=$7
+            `UPDATE products SET name=$1, price=$2, description=$3, images=$4, category=$5, badges=$6, rating=$7
              WHERE id=$8 RETURNING *`,
-            [name, price, description, image, category || '', badges || [], rating || 0, id]
+            [name, price, description, images || [], category || '', badges || [], rating || 0, id]
         );
 
         if (result.rows.length === 0) {
@@ -682,6 +684,17 @@ app.delete('/api/admin/articles/:id', authenticateToken, isAdmin, async (req: Re
     }
 });
 
+// GET /api/admin/newsletter
+app.get('/api/admin/newsletter', authenticateToken, isAdmin, async (req: Request, res: Response) => {
+    try {
+        const result = await pool.query('SELECT * FROM newsletter_subscribers ORDER BY created_at DESC');
+        res.json(result.rows);
+    } catch (err: any) {
+        console.error(err);
+        res.status(500).json({ message: 'Error fetching newsletter subscribers' });
+    }
+});
+
 app.delete('/api/admin/articles/all', authenticateToken, isAdmin, async (req: Request, res: Response) => {
     try {
         await pool.query('DELETE FROM articles');
@@ -819,13 +832,23 @@ async function autoImportProducts() {
 
                 const categoryId = categoryMap.get(record.category) || null;
 
+                // Handle single image or array from CSV
+                let imagesArr = [];
+                try {
+                    imagesArr = (typeof record.image === 'string' && record.image.trim().startsWith('['))
+                        ? JSON.parse(record.image)
+                        : (record.image ? [record.image] : []);
+                } catch (e) {
+                    imagesArr = record.image ? [record.image] : [];
+                }
+
                 const productResult = await client.query(
-                    `INSERT INTO products (name, price, description, image, category, category_id, rating)
+                    `INSERT INTO products (name, price, description, images, category, category_id, rating)
                      VALUES ($1, $2, $3, $4, $5, $6, $7)
                      ON CONFLICT (name) DO UPDATE SET
                         price = EXCLUDED.price,
                         description = EXCLUDED.description,
-                        image = EXCLUDED.image,
+                        images = EXCLUDED.images,
                         category = EXCLUDED.category,
                         category_id = EXCLUDED.category_id,
                         rating = EXCLUDED.rating
@@ -834,7 +857,7 @@ async function autoImportProducts() {
                         record.name,
                         parseFloat(record.price) || 0,
                         record.description || '',
-                        record.image || '',
+                        imagesArr,
                         record.category || '',
                         categoryId,
                         parseFloat(record.rating) || 0

@@ -140,7 +140,7 @@ const Checkout: React.FC = () => {
                             {cart.map(item => (
                                 <div key={item.id} className="flex gap-4">
                                     <div className="w-16 h-16 bg-background rounded-sm overflow-hidden shrink-0">
-                                        <img src={item.image} alt={item.name} className="w-full h-full object-cover" />
+                                        <img src={item.images && item.images.length > 0 ? item.images[0] : ''} alt={item.name} className="w-full h-full object-cover bg-[#F5F5F5]" />
                                     </div>
                                     <div className="flex-1">
                                         <h3 className="font-bold text-sm text-foreground">{item.name}</h3>

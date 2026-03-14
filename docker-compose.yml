@@ -29,6 +29,7 @@ services:
       - ./server/src:/app/src
       - ./server/package.json:/app/package.json
       - ./server/tsconfig.json:/app/tsconfig.json
+      - ./server/uploads:/app/uploads
       - ./products_template.csv:/app/products_template.csv
     depends_on:
       - db

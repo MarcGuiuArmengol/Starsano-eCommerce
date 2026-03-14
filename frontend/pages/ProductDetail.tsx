@@ -23,6 +23,7 @@ const ProductDetail: React.FC = () => {
     const { addToCart } = useCart();
     const { user, token } = useUser();
     const [quantity, setQuantity] = useState(1);
+    const [activeImageIndex, setActiveImageIndex] = useState(0);
     const [showReviewForm, setShowReviewForm] = useState(false);
     const [newReview, setNewReview] = useState({ rating: 5, comment: '' });
     const [submittingReview, setSubmittingReview] = useState(false);
@@ -109,9 +110,30 @@ const ProductDetail: React.FC = () => {
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-20">
                     {/* Gallery */}
                     <div className="space-y-4">
-                        <div className="aspect-square bg-white overflow-hidden shadow-sm rounded-sm">
-                            <img src={product.image} alt={product.name} className="w-full h-full object-cover" />
+                        <div className="aspect-square bg-[#F5F5F5] overflow-hidden shadow-sm rounded-sm relative">
+                            <img 
+                                src={product.images && product.images.length > 0 ? product.images[activeImageIndex] : ''} 
+                                alt={product.name} 
+                                className="w-full h-full object-cover transition-opacity duration-300" 
+                            />
                         </div>
+                        
+                        {/* Thumbnails */}
+                        {product.images && product.images.length > 1 && (
+                            <div className="flex gap-4 overflow-x-auto pb-2 snap-x hide-scrollbar">
+                                {product.images.map((img: string, idx: number) => (
+                                    <button
+                                        key={idx}
+                                        onClick={() => setActiveImageIndex(idx)}
+                                        className={`shrink-0 w-20 h-20 sm:w-24 sm:h-24 bg-[#F5F5F5] rounded-sm overflow-hidden border-2 transition-all ${
+                                            activeImageIndex === idx ? 'border-primary opacity-100' : 'border-transparent opacity-60 hover:opacity-100'
+                                        }`}
+                                    >
+                                        <img src={img} alt={`${product.name} ${idx + 1}`} className="w-full h-full object-cover" />
+                                    </button>
+                                ))}
+                            </div>
+                        )}
                     </div>
 
                     {/* Info */}
@@ -286,8 +308,8 @@ const ProductDetail: React.FC = () => {
                         <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
                             {recommended.map((item) => (
                                 <Link to={`/product/${item.id}`} key={item.id} className="group cursor-pointer">
-                                    <div className="aspect-[3/4] bg-white overflow-hidden mb-4 relative">
-                                        <img src={item.image} alt={item.name} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" />
+                                    <div className="aspect-[3/4] bg-[#F5F5F5] overflow-hidden mb-4 relative rounded-sm">
+                                        <img src={item.images && item.images.length > 0 ? item.images[0] : ''} alt={item.name} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" />
                                         <div className="absolute top-2 right-2 flex flex-col gap-1">
                                             {item.badges?.slice(0, 1).map((b: string) => (
                                                 <div key={b} className="w-6 h-6 rounded-full bg-white/90 shadow-sm flex items-center justify-center p-1">

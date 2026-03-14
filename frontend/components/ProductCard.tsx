@@ -45,7 +45,7 @@ const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
     <Link to={`/product/${product.id}`} className="group flex flex-col h-full bg-white hover:shadow-lg transition-shadow duration-300 rounded-sm">
       <div className="relative aspect-square overflow-hidden bg-[#F5F5F5]">
         <img
-          src={product.image}
+          src={product.images && product.images.length > 0 ? product.images[0] : ''}
           alt={product.name}
           className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
           loading="lazy"

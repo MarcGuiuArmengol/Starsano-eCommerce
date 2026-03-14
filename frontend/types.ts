@@ -1,12 +1,14 @@
 export interface Product {
-  id: string | number;
-  name: string;
-  price: number;
-  description: string;
-  image: string;
-  category: string;
-  badges: string[];
-  rating?: number;
+    id: string | number;
+    name: string;
+    price: number;
+    description: string;
+    image?: string; // Legacy fallback
+    images?: string[]; // New multi-image array
+    category: string;
+    badges: string[];
+    rating?: number;
+    review_count?: number;
 }
 
 export interface CartItem extends Product {

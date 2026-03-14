@@ -100,9 +100,9 @@ const CartDrawer: React.FC = () => {
                             <li key={item.id} className="flex py-6">
                               <div className="h-24 w-24 flex-shrink-0 overflow-hidden rounded-md border border-slate-200 dark:border-slate-700">
                                 <img
-                                  src={item.image}
+                                  src={item.images && item.images.length > 0 ? item.images[0] : ''}
                                   alt={item.name}
-                                  className="h-full w-full object-cover object-center"
+                                  className="h-full w-full object-cover object-center bg-[#F5F5F5]"
                                 />
                               </div>
 

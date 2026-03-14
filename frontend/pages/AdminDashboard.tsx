@@ -5,10 +5,11 @@ import { PRODUCT_LABELS } from '../constants';
 
 const AdminDashboard: React.FC = () => {
     const { user, token } = useUser();
-    const [activeTab, setActiveTab] = useState<'orders' | 'products' | 'articles'>('orders');
+    const [activeTab, setActiveTab] = useState<'orders' | 'products' | 'articles' | 'newsletter'>('orders');
     const [orders, setOrders] = useState<any[]>([]);
     const [products, setProducts] = useState<any[]>([]);
     const [articles, setArticles] = useState<any[]>([]);
+    const [subscribers, setSubscribers] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [importing, setImporting] = useState(false);
     const [isGenerating, setIsGenerating] = useState(false);
@@ -50,6 +51,17 @@ const AdminDashboard: React.FC = () => {
         fetchOrders();
         fetchProducts();
         fetchArticles();
+        fetchSubscribers();
+    };
+
+    const fetchSubscribers = async () => {
+        if (!token) return;
+        try {
+            const data = await api.adminGetNewsletterSubscribers(token);
+            setSubscribers(data);
+        } catch (err) {
+            console.error('Error fetching subscribers:', err);
+        }
     };
 
     const fetchArticles = async () => {
@@ -97,7 +109,7 @@ const AdminDashboard: React.FC = () => {
             const result = await res.json();
             if (res.ok) {
                 if (type === 'product') {
-                    setProductFormData(prev => ({ ...prev, image: result.imageUrl }));
+                    setProductFormData(prev => ({ ...prev, images: [...prev.images, result.imageUrl] }));
                 } else {
                     setArticleFormData(prev => ({ ...prev, image_url: result.imageUrl }));
                 }
@@ -185,7 +197,7 @@ const AdminDashboard: React.FC = () => {
             if (res) {
                 setShowProductForm(false);
                 setEditingProduct(null);
-                setProductFormData({ name: '', price: '', description: '', image: '', badges: [], rating: '5' });
+                setProductFormData({ name: '', price: '', description: '', images: [], category: '', badges: [], rating: '5' });
                 fetchProducts();
                 alert('Producto guardado correctamente');
             }
@@ -305,6 +317,12 @@ const AdminDashboard: React.FC = () => {
                         >
                             Journal
                         </button>
+                        <button
+                            onClick={() => setActiveTab('newsletter')}
+                            className={`px-6 py-2.5 text-[10px] md:text-xs font-bold uppercase tracking-widest transition-all rounded-md whitespace-nowrap ${activeTab === 'newsletter' ? 'bg-primary text-white shadow-md' : 'text-secondary hover:bg-background'}`}
+                        >
+                            Newsletter
+                        </button>
                     </div>
                 </header>
 
@@ -402,7 +420,7 @@ const AdminDashboard: React.FC = () => {
                                 <button
                                     onClick={() => {
                                         setEditingProduct(null);
-                                        setProductFormData({ name: '', price: '', description: '', category: '', image: '', badges: [], rating: '5' });
+                                        setProductFormData({ name: '', price: '', description: '', category: '', images: [], badges: [], rating: '5' });
                                         setShowProductForm(true);
                                     }}
                                     className="bg-primary text-white px-6 py-2.5 text-xs font-bold uppercase tracking-widest hover:bg-accent transition-all shadow-lg flex items-center gap-2"
@@ -430,7 +448,7 @@ const AdminDashboard: React.FC = () => {
                                             <tr key={product.id} className="hover:bg-background-contrast/2 transition-colors">
                                                 <td className="px-6 py-4">
                                                     <div className="flex items-center gap-4">
-                                                        <img src={product.image} alt="" className="w-10 h-10 object-cover rounded-md bg-background" />
+                                                        <img src={product.images && product.images.length > 0 ? product.images[0] : ''} alt="" className="w-10 h-10 object-cover rounded-md bg-background" />
                                                         <div>
                                                             <div className="font-bold text-foreground">{product.name}</div>
                                                             <div className="text-[10px] text-secondary uppercase tracking-widest flex gap-1">
@@ -449,7 +467,8 @@ const AdminDashboard: React.FC = () => {
                                                                     name: product.name,
                                                                     price: product.price.toString(),
                                                                     description: product.description,
-                                                                    image: product.image,
+                                                                    images: product.images || [],
+                                                                    category: product.category || '',
                                                                     badges: product.badges || [],
                                                                     rating: (product.rating || 5).toString()
                                                                 });
@@ -524,26 +543,68 @@ const AdminDashboard: React.FC = () => {
                                             onDrop={handleProductDrop}
                                             className={`border-2 border-dashed rounded-xl p-8 text-center transition-all ${isDragging ? 'border-primary bg-primary/5' : 'border-background-contrast/10'}`}
                                         >
-                                            {productFormData.image ? (
-                                                <div className="relative inline-block group">
-                                                    <img src={productFormData.image} alt="Preview" className="w-32 h-32 object-cover rounded-lg shadow-md" />
-                                                    <button onClick={() => setProductFormData({ ...productFormData, image: '' })} className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 shadow-lg opacity-0 group-hover:opacity-100 transition-opacity">
-                                                        <span className="material-symbols-outlined text-sm">close</span>
-                                                    </button>
+                                            <div className="flex flex-wrap gap-4 items-center justify-center mb-6">
+                                                {productFormData.images.map((img: string, idx: number) => (
+                                                    <div key={idx} className="relative inline-block group border border-border rounded-lg overflow-hidden">
+                                                        <img src={img} alt={`Preview ${idx + 1}`} className="w-24 h-24 object-cover shadow-sm bg-background/50" />
+                                                        <button 
+                                                            type="button" 
+                                                            onClick={(e) => {
+                                                                e.preventDefault();
+                                                                setProductFormData({ ...productFormData, images: productFormData.images.filter((_, i) => i !== idx) });
+                                                            }} 
+                                                            className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 shadow-lg opacity-0 group-hover:opacity-100 transition-opacity"
+                                                        >
+                                                            <span className="material-symbols-outlined text-sm">close</span>
+                                                        </button>
+                                                        {idx === 0 && <span className="absolute bottom-0 left-0 right-0 bg-primary/80 backdrop-blur-md text-white text-[8px] font-bold uppercase tracking-widest text-center py-1">Principal</span>}
+                                                    </div>
+                                                ))}
+                                            </div>
+                                            
+                                            <div className="space-y-4">
+                                                <div className="flex flex-col items-center justify-center border-t border-background-contrast/5 pt-6">
+                                                    <span className="material-symbols-outlined text-4xl text-secondary mb-2">add_photo_alternate</span>
+                                                    <p className="text-xs text-secondary font-medium tracking-wide">{uploading ? 'Subiendo...' : 'Arrastra imágenes para añadir'}</p>
+                                                    
+                                                    <input
+                                                        type="file"
+                                                        accept="image/*"
+                                                        multiple
+                                                        onChange={(e) => {
+                                                            if (e.target.files) {
+                                                                Array.from(e.target.files).forEach((file: any) => handleFileUpload(file as File, 'product'));
+                                                            }
+                                                        }}
+                                                        className="hidden"
+                                                        id="product-image-upload"
+                                                    />
+                                                    <label
+                                                        htmlFor="product-image-upload"
+                                                        className="mt-3 inline-block px-6 py-2 bg-white border border-background-contrast/20 text-[10px] font-bold uppercase tracking-widest text-secondary cursor-pointer hover:bg-background transition-all rounded-md shadow-sm"
+                                                    >
+                                                        Explorar archivos
+                                                    </label>
                                                 </div>
-                                            ) : (
-                                                <div className="space-y-2">
-                                                    <span className="material-symbols-outlined text-4xl text-secondary">image</span>
-                                                    <p className="text-xs text-secondary">{uploading ? 'Subiendo...' : 'Arrastra una imagen o copia la URL'}</p>
+                                                
+                                                <div className="flex items-center gap-2 max-w-sm mx-auto">
                                                     <input
                                                         type="text"
-                                                        placeholder="URL de imagen"
-                                                        value={productFormData.image}
-                                                        onChange={e => setProductFormData({ ...productFormData, image: e.target.value })}
-                                                        className="mt-4 w-full px-4 py-2 bg-background border-none text-xs outline-none text-center"
+                                                        placeholder="O pega una URL de imagen y pulsa Enter"
+                                                        onKeyDown={e => {
+                                                            if (e.key === 'Enter') {
+                                                                e.preventDefault();
+                                                                const val = e.currentTarget.value.trim();
+                                                                if (val) {
+                                                                    setProductFormData({ ...productFormData, images: [...productFormData.images, val] });
+                                                                    e.currentTarget.value = '';
+                                                                }
+                                                            }
+                                                        }}
+                                                        className="w-full px-4 py-2 bg-background border-none text-xs outline-none text-center focus:ring-1 focus:ring-primary/20"
                                                     />
                                                 </div>
-                                            )}
+                                            </div>
                                         </div>
 
                                         <div className="flex gap-4 pt-4">
@@ -720,6 +781,44 @@ const AdminDashboard: React.FC = () => {
                             </div>
                         )}
                     </>
+                )}
+
+                {activeTab === 'newsletter' && (
+                    <div>
+                        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
+                            <div>
+                                <h2 className="text-2xl font-black text-foreground uppercase tracking-tight">Suscripciones a Newsletter</h2>
+                                <p className="text-secondary mt-1">Total: {subscribers.length}</p>
+                            </div>
+                        </div>
+                        <div className="bg-white rounded-xl shadow-sm border border-background-contrast/10 overflow-hidden">
+                            {subscribers.length === 0 ? (
+                                <div className="p-12 text-center flex flex-col items-center">
+                                    <span className="material-symbols-outlined text-6xl text-secondary/20 mb-4">mail</span>
+                                    <p className="text-secondary/60 font-medium">No hay suscriptores aún.</p>
+                                </div>
+                            ) : (
+                                <div className="overflow-x-auto custom-scrollbar">
+                                    <table className="w-full text-left border-collapse min-w-[600px]">
+                                        <thead className="bg-background/50 text-secondary uppercase text-[10px] font-bold tracking-widest">
+                                            <tr>
+                                                <th className="p-4 px-6 border-b border-background-contrast/10">Email</th>
+                                                <th className="p-4 px-6 border-b border-background-contrast/10">Fecha de Suscripción</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {subscribers.map((sub) => (
+                                                <tr key={sub.id} className="border-b border-border/50 hover:bg-background-alt/50 transition-colors">
+                                                    <td className="p-4 px-6 text-sm font-medium">{sub.email}</td>
+                                                    <td className="p-4 px-6 text-sm text-secondary">{new Date(sub.created_at).toLocaleString()}</td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            )}
+                        </div>
+                    </div>
                 )}
 
             </div>
