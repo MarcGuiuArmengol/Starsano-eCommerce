@@ -24,7 +24,7 @@ const Contact: React.FC = () => {
                                     <span className="material-symbols-outlined text-accent text-2xl mt-1">location_on</span>
                                     <div>
                                         <h3 className="font-heading font-bold text-sm uppercase tracking-widest mb-1 text-white/80">Ubicación</h3>
-                                        <p className="font-light text-white/90">Bulevard Popocatépetl 97,<br />Hab los Pirules, 54040<br />Tlalnepantla, Méx. México</p>
+                                        <p className="font-light text-white/90">Boulevard Popocatépetl 97,<br />Hab los Pirules, 54040<br />Tlalnepantla, Méx. México</p>
                                     </div>
                                 </div>
 
