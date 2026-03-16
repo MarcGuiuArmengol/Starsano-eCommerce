@@ -13,7 +13,7 @@ class SheetsClient:
 
     def __init__(self, config: Optional[Dict] = None, path: Optional[str] = None, max_history: int = 50):
         cfg = config or {}
-        self.path = path or cfg.get('LOCAL_DB_FILE', cfg.get('GOOGLE_SHEETS_FILE', 'local_db.json'))
+        self.path = path or cfg.get('LOCAL_DB_FILE', 'local_db.json')
         self.max_history = max_history
         if not os.path.exists(self.path):
             self._write({'entries': []})

@@ -2,6 +2,10 @@
 
 Preparación mínima — rellena las claves en `.env` y ejecuta.
 
+```bash
+cp .env.example .env
+```
+
 Requisitos:
 - Python 3.10+
 
@@ -20,8 +24,6 @@ Editar `.env` y completar las claves necesarias. Archivo `.env` incluye placehol
 
 - `OPENAI_API_KEY` — clave de OpenAI.
 - `OPENAI_MODEL` — opcional (p. ej. `gpt-4o-mini`).
-- `SHOPIFY_API_KEY`, `SHOPIFY_PASSWORD`, `SHOPIFY_STORE` — para integración Shopify (opcional mientras uses mocks).
-- `SHOPIFY_ACCESS_TOKEN` — token Admin API si usas el método moderno.
 - `LOCAL_DB_FILE` — fichero JSON donde se guardan títulos recientes (por defecto `local_db.json`).
 - `RECENT_WEEKS` — semanas a evitar duplicar (por defecto 4).
 
@@ -32,9 +34,9 @@ python run.py
 ```
 
 Qué hace el proyecto ahora:
-- Descarga productos (mock si no hay Shopify configurado).
+- Lee productos reales desde PostgreSQL.
 - Selección aleatoria de producto ignorando títulos recientes (según `RECENT_WEEKS`).
 - Genera un artículo HTML en una sola llamada LLM si `OPENAI_API_KEY` + `langchain` están disponibles; si no, usa un mock local.
 - Guarda el artículo y registra el título en `LOCAL_DB_FILE` con timestamp.
 
-Cuando quieras, puedo conectar Shopify real y Google Sheets; por ahora la configuración mínima es rellenar `.env` y ejecutar como arriba.
+La configuración mínima actual es rellenar `.env` y ejecutar como arriba.

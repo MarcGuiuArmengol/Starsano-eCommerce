@@ -9,21 +9,23 @@ from .db import db_client
 
 load_dotenv()
 
+OPENAI_MODEL = os.environ.get("OPENAI_MODEL", "gpt-4o-mini")
+
 # Inicializar el modelo OpenAI
 llm = ChatOpenAI(
-    model="gpt-4o-mini",
+    model=OPENAI_MODEL,
     api_key=os.environ.get("OPENAI_API_KEY"),
     temperature=0
 )
 
 assistant_llm = ChatOpenAI(
-    model="gpt-4o-mini",
+    model=OPENAI_MODEL,
     api_key=os.environ.get("OPENAI_API_KEY"),
     temperature=0.4
 )
 
 angry_llm = ChatOpenAI(
-    model="gpt-4o-mini",
+    model=OPENAI_MODEL,
     api_key=os.environ.get("OPENAI_API_KEY"),
     temperature=0.3
 )

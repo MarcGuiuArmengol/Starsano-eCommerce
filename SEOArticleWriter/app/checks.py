@@ -7,7 +7,7 @@ def validate_env(config: dict) -> dict:
         'OPENAI_API_KEY',
     ]
     optional = [
-        'SHOPIFY_STORE', 'SHOPIFY_API_KEY', 'SHOPIFY_PASSWORD', 'SHOPIFY_ACCESS_TOKEN'
+        'OPENAI_MODEL', 'LOCAL_DB_FILE', 'RECENT_WEEKS'
     ]
     missing = [k for k in required if not config.get(k)]
     present = [k for k in required + optional if config.get(k)]

@@ -15,11 +15,8 @@ def load_config():
         pass
 
     return {
-        'SHOPIFY_API_KEY': os.getenv('SHOPIFY_API_KEY', ''),
-        'SHOPIFY_PASSWORD': os.getenv('SHOPIFY_PASSWORD', ''),
-        'SHOPIFY_STORE': os.getenv('SHOPIFY_STORE', ''),
-        'GOOGLE_SHEETS_FILE': os.getenv('GOOGLE_SHEETS_FILE', 'sheet_sim.csv'),
         'LOCAL_DB_FILE': os.getenv('LOCAL_DB_FILE', 'local_db.json'),
         'RECENT_WEEKS': int(os.getenv('RECENT_WEEKS', '4')),
-        'OPENAI_API_KEY': os.getenv('OPENAI_API_KEY', '')
+        'OPENAI_API_KEY': os.getenv('OPENAI_API_KEY', ''),
+        'OPENAI_MODEL': os.getenv('OPENAI_MODEL', 'gpt-4o-mini')
     }

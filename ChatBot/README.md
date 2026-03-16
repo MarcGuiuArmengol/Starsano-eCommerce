@@ -1,6 +1,6 @@
 # 1) Variables
 cp .env.example .env
-# Rellena OPENAI_API_KEY, SHOPIFY_STORE_DOMAIN, SHOPIFY_STOREFRONT_TOKEN
+# Rellena OPENAI_API_KEY y, si aplica, las credenciales de WhatsApp/SMTP
 
 # 2) Entorno
 python -m venv .venv && source .venv/bin/activate
