@@ -7,6 +7,7 @@ import path from 'path';
 import multer from 'multer';
 import { parse } from 'csv-parse/sync';
 import { exec } from 'child_process';
+import nodemailer from 'nodemailer';
 import { hashPassword, comparePassword, generateToken, verifyToken } from './auth';
 
 dotenv.config();
@@ -26,6 +27,12 @@ const pool = new Pool({
     password: process.env.POSTGRES_PASSWORD || 'postgres',
     port: 5432,
 });
+
+const SMTP_HOST = process.env.SMTP_HOST;
+const SMTP_PORT = Number(process.env.SMTP_PORT || 587);
+const SMTP_USER = process.env.SMTP_USER;
+const SMTP_PASS = process.env.SMTP_PASS;
+const SMTP_FROM = process.env.SMTP_FROM || SMTP_USER;
 
 // Multer Configuration for Image Uploads
 const uploadDir = path.join(process.cwd(), 'uploads');
@@ -361,6 +368,131 @@ app.post('/api/newsletter/subscribe', async (req: Request, res: Response) => {
     } catch (err) {
         console.error(err);
         res.status(500).json({ message: 'Error subscribing' });
+    }
+});
+
+async function ensureAppSettingsTable() {
+    await pool.query(`
+        CREATE TABLE IF NOT EXISTS app_settings (
+            key VARCHAR(100) PRIMARY KEY,
+            value TEXT NOT NULL,
+            updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+        )
+    `);
+}
+
+async function getConfiguredContactEmail(): Promise<string | null> {
+    try {
+        const result = await pool.query('SELECT value FROM app_settings WHERE key = $1', ['contact_email']);
+        if (result.rows.length > 0 && result.rows[0].value) {
+            return result.rows[0].value;
+        }
+    } catch (err) {
+        console.error('Error reading contact email setting:', err);
+    }
+    return process.env.ALERT_EMAIL_TO || process.env.ADMIN_EMAIL || null;
+}
+
+async function sendEmailNotification(to: string, subject: string, body: string, replyTo?: string) {
+    if (!SMTP_HOST || !SMTP_USER || !SMTP_PASS || !SMTP_FROM) {
+        throw new Error('SMTP is not configured. Set SMTP_HOST, SMTP_USER, SMTP_PASS and SMTP_FROM.');
+    }
+
+    const transporter = nodemailer.createTransport({
+        host: SMTP_HOST,
+        port: SMTP_PORT,
+        secure: SMTP_PORT === 465,
+        auth: {
+            user: SMTP_USER,
+            pass: SMTP_PASS,
+        },
+    });
+
+    await transporter.sendMail({
+        from: SMTP_FROM,
+        to,
+        subject,
+        text: body,
+        replyTo,
+    });
+}
+
+// CONTACT SETTINGS
+app.get('/api/admin/settings/contact-email', authenticateToken, isAdmin, async (req: Request, res: Response) => {
+    try {
+        const currentEmail = await getConfiguredContactEmail();
+        res.json({ email: currentEmail || '' });
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ message: 'Error fetching contact email setting' });
+    }
+});
+
+app.put('/api/admin/settings/contact-email', authenticateToken, isAdmin, async (req: Request, res: Response) => {
+    const { email } = req.body;
+    if (!email) return res.status(400).json({ message: 'Email required' });
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+        return res.status(400).json({ message: 'Invalid email format' });
+    }
+
+    try {
+        await ensureAppSettingsTable();
+        await pool.query(
+            `INSERT INTO app_settings (key, value, updated_at)
+             VALUES ($1, $2, CURRENT_TIMESTAMP)
+             ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_at = CURRENT_TIMESTAMP`,
+            ['contact_email', email.trim().toLowerCase()]
+        );
+        res.json({ message: 'Contact email updated', email: email.trim().toLowerCase() });
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ message: 'Error updating contact email setting' });
+    }
+});
+
+// CONTACT FORM
+app.post('/api/contact', async (req: Request, res: Response) => {
+    const { name, lastName, email, subject, message } = req.body || {};
+
+    if (!name || !email || !subject || !message) {
+        return res.status(400).json({ message: 'Name, email, subject and message are required' });
+    }
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+        return res.status(400).json({ message: 'Invalid email format' });
+    }
+
+    try {
+        const destinationEmail = await getConfiguredContactEmail();
+        if (!destinationEmail) {
+            return res.status(500).json({ message: 'Contact destination email is not configured' });
+        }
+
+        const composedBody = [
+            'Nuevo mensaje desde el formulario de contacto de Starsano.',
+            '',
+            `Nombre: ${name} ${lastName || ''}`.trim(),
+            `Email: ${email}`,
+            `Asunto: ${subject}`,
+            '',
+            'Mensaje:',
+            message,
+        ].join('\n');
+
+        await sendEmailNotification(
+            destinationEmail,
+            `Contacto Starsano: ${subject}`,
+            composedBody,
+            email
+        );
+
+        res.json({ message: 'Message sent successfully' });
+    } catch (err: any) {
+        console.error('Error sending contact form email:', err?.message || err);
+        res.status(500).json({ message: 'Error sending contact message' });
     }
 });
 
@@ -942,6 +1074,7 @@ app.listen(port, async () => {
 
     // 2. Sync Admin User (important)
     try {
+        await ensureAppSettingsTable();
         await ensureAdminUser();
         console.log('[DEBUG] ensureAdminUser process completed');
     } catch (err) {

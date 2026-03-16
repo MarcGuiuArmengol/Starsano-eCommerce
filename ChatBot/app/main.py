@@ -13,6 +13,7 @@ from dotenv import load_dotenv
 
 from .sql import MemoryStore
 from .intention_classifier import classify_intention, route_message
+from .db import db_client
 
 # Cargar variables de entorno desde .env
 load_dotenv()
@@ -99,7 +100,9 @@ def send_whatsapp_message(to_number: str, text: str) -> bool:
         return False
 
 def send_alert_email(user_id: str, message_text: str) -> bool:
-    if not (SMTP_HOST and SMTP_USER and SMTP_PASS and SMTP_FROM and ALERT_EMAIL_TO):
+    destination_email = db_client.get_contact_email_setting() or ALERT_EMAIL_TO
+
+    if not (SMTP_HOST and SMTP_USER and SMTP_PASS and SMTP_FROM and destination_email):
         print("Faltan credenciales de SMTP o destinatario")
         return False
 
@@ -112,7 +115,7 @@ def send_alert_email(user_id: str, message_text: str) -> bool:
     msg = EmailMessage()
     msg["Subject"] = "Alerta: usuario requiere atención humana"
     msg["From"] = SMTP_FROM
-    msg["To"] = ALERT_EMAIL_TO
+    msg["To"] = destination_email
     msg.set_content(email_body)
 
     try:

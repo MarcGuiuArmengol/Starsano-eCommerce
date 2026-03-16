@@ -67,6 +67,18 @@ export const api = {
         if (!response.ok) throw new Error('Subscription failed');
         return response.json();
     },
+    sendContactMessage: async (data: { name: string; lastName?: string; email: string; subject: string; message: string; }) => {
+        const response = await fetch(`${API_BASE_URL}/api/contact`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data),
+        });
+        if (!response.ok) {
+            const error = await response.json().catch(() => ({}));
+            throw new Error(error.message || 'Failed to send contact message');
+        }
+        return response.json();
+    },
     // ORDERS
     createOrder: async (orderData: any, token: string) => {
         const response = await fetch(`${API_BASE_URL}/api/orders`, {
@@ -291,6 +303,28 @@ export const api = {
             headers: { 'Authorization': `Bearer ${token}` },
         });
         if (!response.ok) throw new Error('Failed to fetch newsletter subscribers');
+        return response.json();
+    },
+    adminGetContactEmailSetting: async (token: string) => {
+        const response = await fetch(`${API_BASE_URL}/api/admin/settings/contact-email`, {
+            headers: { 'Authorization': `Bearer ${token}` },
+        });
+        if (!response.ok) throw new Error('Failed to fetch contact email setting');
+        return response.json();
+    },
+    adminUpdateContactEmailSetting: async (email: string, token: string) => {
+        const response = await fetch(`${API_BASE_URL}/api/admin/settings/contact-email`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`,
+            },
+            body: JSON.stringify({ email }),
+        });
+        if (!response.ok) {
+            const error = await response.json().catch(() => ({}));
+            throw new Error(error.message || 'Failed to update contact email setting');
+        }
         return response.json();
     }
 };

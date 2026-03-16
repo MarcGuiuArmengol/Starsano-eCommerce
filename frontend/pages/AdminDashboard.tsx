@@ -10,6 +10,8 @@ const AdminDashboard: React.FC = () => {
     const [products, setProducts] = useState<any[]>([]);
     const [articles, setArticles] = useState<any[]>([]);
     const [subscribers, setSubscribers] = useState<any[]>([]);
+    const [contactEmail, setContactEmail] = useState('');
+    const [contactEmailSaving, setContactEmailSaving] = useState(false);
     const [loading, setLoading] = useState(true);
     const [importing, setImporting] = useState(false);
     const [isGenerating, setIsGenerating] = useState(false);
@@ -52,6 +54,33 @@ const AdminDashboard: React.FC = () => {
         fetchProducts();
         fetchArticles();
         fetchSubscribers();
+        fetchContactEmailSetting();
+    };
+
+    const fetchContactEmailSetting = async () => {
+        if (!token) return;
+        try {
+            const data = await api.adminGetContactEmailSetting(token);
+            setContactEmail(data?.email || '');
+        } catch (err) {
+            console.error('Error fetching contact email setting:', err);
+        }
+    };
+
+    const handleContactEmailSave = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!token) return;
+        try {
+            setContactEmailSaving(true);
+            const data = await api.adminUpdateContactEmailSetting(contactEmail, token);
+            setContactEmail(data?.email || contactEmail);
+            alert('Correo de contacto actualizado correctamente');
+        } catch (err: any) {
+            console.error('Error updating contact email setting:', err);
+            alert(err?.message || 'Error al guardar el correo de contacto');
+        } finally {
+            setContactEmailSaving(false);
+        }
     };
 
     const fetchSubscribers = async () => {
@@ -785,6 +814,31 @@ const AdminDashboard: React.FC = () => {
 
                 {activeTab === 'newsletter' && (
                     <div>
+                        <div className="bg-white rounded-xl shadow-sm border border-background-contrast/10 p-6 mb-6">
+                            <h3 className="text-lg font-bold text-foreground mb-2">Correo de contacto para avisos</h3>
+                            <p className="text-secondary text-sm mb-4">Este correo recibirá mensajes del formulario de contacto y alertas del chatbot cuando detecte intervención humana.</p>
+                            <form onSubmit={handleContactEmailSave} className="flex flex-col sm:flex-row gap-3 items-start sm:items-end">
+                                <div className="w-full sm:flex-1">
+                                    <label className="block text-xs font-bold uppercase tracking-widest text-secondary mb-2">Correo de destino</label>
+                                    <input
+                                        type="email"
+                                        required
+                                        value={contactEmail}
+                                        onChange={(e) => setContactEmail(e.target.value)}
+                                        placeholder="soporte@starsano.com"
+                                        className="w-full bg-background border-0 border-b border-background-contrast focus:border-primary focus:ring-0 px-0 py-3 transition-colors"
+                                    />
+                                </div>
+                                <button
+                                    type="submit"
+                                    disabled={contactEmailSaving}
+                                    className="bg-primary text-white px-6 py-3 text-xs font-bold uppercase tracking-widest hover:bg-accent transition-all disabled:opacity-50"
+                                >
+                                    {contactEmailSaving ? 'Guardando...' : 'Guardar correo'}
+                                </button>
+                            </form>
+                        </div>
+
                         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
                             <div>
                                 <h2 className="text-2xl font-black text-foreground uppercase tracking-tight">Suscripciones a Newsletter</h2>

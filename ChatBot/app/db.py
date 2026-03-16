@@ -111,5 +111,19 @@ class StoreDB:
         finally:
             conn.close()
 
+    def get_contact_email_setting(self) -> Optional[str]:
+        conn = self._get_connection()
+        try:
+            with conn.cursor() as cur:
+                cur.execute("SELECT value FROM app_settings WHERE key = %s", ('contact_email',))
+                row = cur.fetchone()
+                if row and row.get('value'):
+                    return row['value']
+                return None
+        except Exception:
+            return None
+        finally:
+            conn.close()
+
 # Singleton instance
 db_client = StoreDB()
