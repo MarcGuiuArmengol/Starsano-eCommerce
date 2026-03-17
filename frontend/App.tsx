@@ -1,7 +1,8 @@
 import React from 'react';
-import { HashRouter as Router, Routes, Route, useLocation } from 'react-router-dom';
+import { HashRouter as Router, Routes, Route, useLocation, Navigate } from 'react-router-dom';
 import { CartProvider } from './context/CartContext';
 import { UserProvider } from './context/UserContext';
+import { useUser } from './context/UserContext';
 import Layout from './components/Layout';
 import Home from './pages/Home';
 import Shop from './pages/Shop';
@@ -27,6 +28,8 @@ const ScrollToTop = () => {
 
 // Wrapper since useLocation must be inside Router
 const AppContent = () => {
+  const { user, isLoading } = useUser();
+
   return (
     <>
       <ScrollToTop />
@@ -42,7 +45,16 @@ const AppContent = () => {
           <Route path="/checkout" element={<Checkout />} />
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
-          <Route path="/admin" element={<AdminDashboard />} />
+          <Route
+            path="/admin"
+            element={
+              isLoading
+                ? null
+                : user?.role === 'admin'
+                  ? <AdminDashboard />
+                  : <Navigate to="/login" replace />
+            }
+          />
           <Route path="/profile" element={<Profile />} />
           <Route path="/orders" element={<Orders />} />
           <Route path="*" element={<div className="min-h-[70vh] flex flex-col items-center justify-center text-center px-4"><h1 className="text-4xl mb-4">404</h1><p className="text-secondary">Página no encontrada</p></div>} />

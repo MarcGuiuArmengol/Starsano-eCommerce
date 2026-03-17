@@ -7,6 +7,9 @@ const BlogPost: React.FC = () => {
     const { id } = useParams<{ id: string }>();
     const [article, setArticle] = useState<any>(null);
     const [loading, setLoading] = useState(true);
+    const [newsletterEmail, setNewsletterEmail] = useState('');
+    const [newsletterStatus, setNewsletterStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
+    const [newsletterMessage, setNewsletterMessage] = useState('');
 
     useEffect(() => {
         const fetchArticle = async () => {
@@ -22,6 +25,23 @@ const BlogPost: React.FC = () => {
         };
         fetchArticle();
     }, [id]);
+
+    const handleNewsletterSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!newsletterEmail.trim()) return;
+
+        try {
+            setNewsletterStatus('loading');
+            setNewsletterMessage('');
+            await api.subscribeNewsletter(newsletterEmail.trim());
+            setNewsletterStatus('success');
+            setNewsletterMessage('¡Gracias! Te has suscrito correctamente.');
+            setNewsletterEmail('');
+        } catch (error: any) {
+            setNewsletterStatus('error');
+            setNewsletterMessage(error?.message || 'No se pudo completar la suscripción. Inténtalo de nuevo.');
+        }
+    };
 
     if (loading) {
         return (
@@ -65,16 +85,24 @@ const BlogPost: React.FC = () => {
                     <div className="bg-background-contrast/5 p-8 rounded-2xl text-center">
                         <h3 className="text-2xl font-heading mb-4">¿Te ha gustado este artículo?</h3>
                         <p className="text-secondary mb-8">Suscríbete a nuestro Journal para recibir más consejos sobre nutrición y bienestar consciente.</p>
-                        <div className="flex flex-col sm:flex-row gap-4 max-w-md mx-auto">
+                        <form onSubmit={handleNewsletterSubmit} className="flex flex-col sm:flex-row gap-4 max-w-md mx-auto">
                             <input
                                 type="email"
                                 placeholder="Tu email"
+                                value={newsletterEmail}
+                                onChange={(e) => setNewsletterEmail(e.target.value)}
+                                required
                                 className="flex-1 px-6 py-3 border border-background-contrast/20 focus:outline-none focus:border-primary"
                             />
-                            <button className="bg-foreground text-white px-8 py-3 font-bold uppercase tracking-widest text-xs hover:bg-primary transition-all">
-                                Suscribirme
+                            <button type="submit" disabled={newsletterStatus === 'loading'} className="bg-foreground text-white px-8 py-3 font-bold uppercase tracking-widest text-xs hover:bg-primary transition-all disabled:opacity-60 disabled:cursor-not-allowed">
+                                {newsletterStatus === 'loading' ? 'Enviando...' : 'Suscribirme'}
                             </button>
-                        </div>
+                        </form>
+                        {newsletterMessage && (
+                            <p className={`mt-4 text-sm ${newsletterStatus === 'success' ? 'text-green-700' : 'text-red-600'}`}>
+                                {newsletterMessage}
+                            </p>
+                        )}
                     </div>
                 </div>
             </div>

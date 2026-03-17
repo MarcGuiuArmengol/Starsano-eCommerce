@@ -130,12 +130,12 @@ const ChatWidget: React.FC = () => {
     };
 
     return (
-        <div className="fixed bottom-4 right-4 z-[100] flex flex-col items-end">
+        <div className="fixed bottom-4 right-4 left-4 sm:left-auto z-[100] flex flex-col items-end">
             {/* Chat Window */}
             {isOpen && (
-                <div className="mb-2 w-80 sm:w-96 bg-background-card rounded-2xl shadow-2xl border border-border overflow-hidden animate-slideUp flex flex-col h-[500px]">
+                <div className="mb-2 w-full sm:w-96 bg-background-card rounded-2xl sm:rounded-2xl shadow-2xl border border-border overflow-hidden animate-slideUp flex flex-col h-[calc(100vh-7rem)] sm:h-[500px] max-h-[calc(100vh-7rem)] sm:max-h-[500px]">
                     {/* Header */}
-                    <div className="bg-cta-gradient p-4 text-white flex justify-between items-center shrink-0">
+                    <div className="bg-cta-gradient p-3 sm:p-4 text-white flex justify-between items-center shrink-0">
                         <div className="flex items-center gap-3">
                             <div className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center backdrop-blur-sm">
                                 <span className="material-symbols-outlined text-white">smart_toy</span>
@@ -154,16 +154,16 @@ const ChatWidget: React.FC = () => {
                     </div>
 
                     {/* Messages Area */}
-                    <div className="flex-grow p-4 overflow-y-auto bg-background/30 flex flex-col gap-4">
+                    <div className="flex-grow p-3 sm:p-4 overflow-y-auto bg-background/30 flex flex-col gap-3 sm:gap-4">
                         {messages.map((msg, i) => (
                             <React.Fragment key={i}>
-                                <div className={`flex items-start gap-2 max-w-[85%] ${msg.role === 'user' ? 'ml-auto flex-row-reverse' : ''}`}>
+                                <div className={`flex items-start gap-2 max-w-[92%] sm:max-w-[85%] ${msg.role === 'user' ? 'ml-auto flex-row-reverse' : ''}`}>
                                     {msg.role === 'assistant' && (
                                         <div className="w-8 h-8 rounded-full bg-brand-soft flex items-center justify-center shrink-0">
                                             <span className="material-symbols-outlined text-white text-sm">smart_toy</span>
                                         </div>
                                     )}
-                                    <div className={`p-3 rounded-2xl text-sm shadow-sm ${msg.role === 'user'
+                                    <div className={`p-3 rounded-2xl text-sm shadow-sm break-words ${msg.role === 'user'
                                         ? 'bg-primary text-white rounded-tr-none'
                                         : 'bg-white border border-border text-foreground rounded-tl-none'
                                         }`}>
@@ -189,7 +189,7 @@ const ChatWidget: React.FC = () => {
                     {/* Input Area */}
                     <form
                         onSubmit={(e) => { e.preventDefault(); handleSend(); }}
-                        className="p-4 border-t border-border bg-white shrink-0"
+                        className="p-3 sm:p-4 border-t border-border bg-white shrink-0"
                     >
                         <div className="relative group">
                             <input
@@ -214,7 +214,7 @@ const ChatWidget: React.FC = () => {
             {/* Toggle Button */}
             <button
                 onClick={() => setIsOpen(!isOpen)}
-                className="w-16 h-16 rounded-full bg-cta-gradient shadow-lg flex items-center justify-center text-white transition-all duration-300 hover:scale-110 active:scale-95 group relative"
+                className="w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-cta-gradient shadow-lg flex items-center justify-center text-white transition-all duration-300 hover:scale-110 active:scale-95 group relative"
             >
                 <div className="absolute inset-0 rounded-full bg-primary animate-ping opacity-20 group-hover:hidden"></div>
                 <span className={`material-symbols-outlined text-3xl transition-all duration-300 ${isOpen ? 'rotate-90 opacity-0 scale-0' : 'opacity-100 scale-100'}`}>

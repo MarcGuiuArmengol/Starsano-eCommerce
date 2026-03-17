@@ -94,7 +94,11 @@ app.get('/api/products/:id/reviews', async (req: Request, res: Response) => {
             'SELECT * FROM reviews WHERE product_id = $1 ORDER BY created_at DESC',
             [id]
         );
-        res.json(result.rows);
+        const reviews = result.rows.map((row: any) => ({
+            ...row,
+            rating: Number(row.rating),
+        }));
+        res.json(reviews);
     } catch (err: any) {
         console.error(err);
         res.status(500).json({ message: 'Error fetching reviews' });
@@ -106,6 +110,15 @@ app.post('/api/products/:id/reviews', authenticateToken, async (req: Request, re
         const { id } = req.params;
         const { rating, comment } = req.body;
         const { userId } = (req as any).user;
+        const normalizedRating = Number(rating);
+
+        if (!Number.isInteger(normalizedRating) || normalizedRating < 1 || normalizedRating > 5) {
+            return res.status(400).json({ message: 'Rating must be an integer between 1 and 5' });
+        }
+
+        if (!comment || !String(comment).trim()) {
+            return res.status(400).json({ message: 'Comment is required' });
+        }
 
         // Fetch user info for name
         const userRes = await pool.query('SELECT email FROM users WHERE id = $1', [userId]);
@@ -114,9 +127,12 @@ app.post('/api/products/:id/reviews', authenticateToken, async (req: Request, re
         const result = await pool.query(
             `INSERT INTO reviews (product_id, user_id, user_name, rating, comment)
              VALUES ($1, $2, $3, $4, $5) RETURNING *`,
-            [id, userId, userName, rating, comment]
+            [id, userId, userName, normalizedRating, String(comment).trim()]
         );
-        res.status(201).json(result.rows[0]);
+        res.status(201).json({
+            ...result.rows[0],
+            rating: Number(result.rows[0].rating),
+        });
     } catch (err: any) {
         console.error(err);
         res.status(500).json({ message: 'Error posting review' });

@@ -163,7 +163,7 @@ const ProductDetail: React.FC = () => {
                         <div className="flex items-center gap-4 mb-6 md:mb-8">
                             <div className="flex items-center text-accent">
                                 {[1, 2, 3, 4, 5].map(i => (
-                                    <span key={i} className={`material-symbols-outlined text-base md:text-lg ${i <= Math.round(product.rating || 0) ? 'filled' : ''}`}>
+                                    <span key={i} className="material-symbols-outlined text-base md:text-lg">
                                         {i <= Math.round(product.rating || 0) ? 'star' : 'star_outline'}
                                     </span>
                                 ))}
@@ -222,7 +222,9 @@ const ProductDetail: React.FC = () => {
                                                     <p className="font-bold text-foreground">{review.user_name}</p>
                                                     <div className="flex text-accent mt-1">
                                                         {[1, 2, 3, 4, 5].map(i => (
-                                                            <span key={i} className={`material-symbols-outlined text-sm ${i <= review.rating ? 'filled' : ''}`}>star</span>
+                                                            <span key={i} className="material-symbols-outlined text-sm">
+                                                                {i <= Number(review.rating || 0) ? 'star' : 'star_outline'}
+                                                            </span>
                                                         ))}
                                                     </div>
                                                 </div>
@@ -243,17 +245,19 @@ const ProductDetail: React.FC = () => {
                                     <h4 className="text-lg font-bold mb-4">Escribir una reseña</h4>
                                     <div className="mb-4">
                                         <label className="block text-xs font-bold uppercase tracking-widest text-secondary mb-2">Puntuación</label>
-                                        <div className="flex gap-2">
+                                        <div className="flex items-center gap-2">
                                             {[1, 2, 3, 4, 5].map(i => (
                                                 <button
                                                     key={i}
                                                     type="button"
                                                     onClick={() => setNewReview({ ...newReview, rating: i })}
-                                                    className={`material-symbols-outlined text-2xl ${i <= newReview.rating ? 'filled text-accent' : 'text-secondary'}`}
+                                                    aria-label={`Seleccionar ${i} estrella${i > 1 ? 's' : ''}`}
+                                                    className={`material-symbols-outlined text-3xl leading-none p-1 rounded transition-colors ${i <= newReview.rating ? 'filled text-accent' : 'text-secondary hover:text-accent/70'}`}
                                                 >
                                                     star
                                                 </button>
                                             ))}
+                                            <span className="ml-2 text-sm font-semibold text-secondary">{newReview.rating}/5</span>
                                         </div>
                                     </div>
                                     <div className="mb-4">

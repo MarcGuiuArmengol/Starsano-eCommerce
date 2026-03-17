@@ -1,6 +1,6 @@
 # 1) Variables
 cp .env.example .env
-# Rellena OPENAI_API_KEY y, si aplica, las credenciales de WhatsApp/SMTP
+# Rellena OPENAI_API_KEY y, si aplica, las credenciales SMTP
 
 # 2) Entorno
 python -m venv .venv && source .venv/bin/activate
@@ -9,8 +9,11 @@ pip install -r requirements.txt
 # 3) Arrancar
 uvicorn app.main:app --reload
 
-# 4) Crear índice (una vez)
-curl -X POST "http://localhost:8000/ingest?limit=120"
+# 4) Reindexar catálogo (admin)
+curl -X POST "http://localhost:8000/admin/reindex"
+
+# 4.1) Ver estado de reindex
+curl "http://localhost:8000/admin/reindex/status"
 
 # 5) Chat
 curl -X POST "http://localhost:8000/chat" \

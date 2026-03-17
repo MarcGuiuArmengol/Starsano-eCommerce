@@ -1,4 +1,5 @@
 import os
+import time
 import faiss
 import numpy as np
 import pickle
@@ -21,14 +22,18 @@ class ProductVectorStore:
         # Combine name, category and description for a rich embedding
         return f"Producto: {product['name']}. Categoría: {product['category']}. Descripción: {product['description']}"
 
-    def sync_with_db(self):
+    def sync_with_db(self) -> Dict[str, Any]:
         """Fetches all products from DB, generates embeddings and saves the FAISS index."""
+        started_at = time.time()
         print("Sincronizando vector store con la base de datos...")
         products = db_client.get_all_products_for_indexing()
         
         if not products:
             print("No se encontraron productos para indexar.")
-            return
+            return {
+                "indexed": 0,
+                "duration_ms": int((time.time() - started_at) * 1000)
+            }
 
         texts = [self._create_text_for_embedding(p) for p in products]
         vectors = self.embeddings.embed_documents(texts)
@@ -46,6 +51,10 @@ class ProductVectorStore:
             pickle.dump(self.metadata, f)
         
         print(f"Indexación completada: {len(products)} productos procesados.")
+        return {
+            "indexed": len(products),
+            "duration_ms": int((time.time() - started_at) * 1000)
+        }
 
     def load_index(self):
         """Loads index from disk or syncs if not exists."""

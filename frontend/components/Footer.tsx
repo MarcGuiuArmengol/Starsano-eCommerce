@@ -1,8 +1,30 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import logo from '../logo.png';
+import { api } from '../services/api';
 
 const Footer: React.FC = () => {
+  const [email, setEmail] = React.useState('');
+  const [status, setStatus] = React.useState<'idle' | 'loading' | 'success' | 'error'>('idle');
+  const [message, setMessage] = React.useState('');
+
+  const handleNewsletterSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!email.trim()) return;
+
+    try {
+      setStatus('loading');
+      setMessage('');
+      await api.subscribeNewsletter(email.trim());
+      setStatus('success');
+      setMessage('¡Listo! Te has suscrito correctamente.');
+      setEmail('');
+    } catch (error: any) {
+      setStatus('error');
+      setMessage(error?.message || 'No se pudo completar la suscripción. Inténtalo de nuevo.');
+    }
+  };
+
   return (
     <footer className="bg-primary text-white pt-20 pb-10">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -45,15 +67,21 @@ const Footer: React.FC = () => {
           <div>
             <h4 className="text-white font-bold mb-6 text-sm uppercase tracking-widest">Newsletter</h4>
             <p className="text-xs text-white/60 mb-4">Suscríbete para recibir novedades y ofertas exclusivas.</p>
-            <form onSubmit={(e) => e.preventDefault()} className="flex flex-col gap-2">
+            <form onSubmit={handleNewsletterSubmit} className="flex flex-col gap-2">
               <input
                 type="email"
                 placeholder="Tu email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
                 className="bg-white/10 border border-white/20 text-white placeholder:text-white/40 px-4 py-2 rounded focus:ring-1 focus:ring-accent focus:border-accent text-sm"
               />
-              <button type="submit" className="bg-white text-primary font-bold py-2 px-4 rounded hover:bg-accent hover:text-white transition-colors text-sm uppercase">
-                Suscribirse
+              <button type="submit" disabled={status === 'loading'} className="bg-white text-primary font-bold py-2 px-4 rounded hover:bg-accent hover:text-white transition-colors text-sm uppercase disabled:opacity-60 disabled:cursor-not-allowed">
+                {status === 'loading' ? 'Enviando...' : 'Suscribirse'}
               </button>
+              {message && (
+                <p className={`text-xs mt-1 ${status === 'success' ? 'text-green-200' : 'text-red-200'}`}>{message}</p>
+              )}
             </form>
           </div>
         </div>

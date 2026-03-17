@@ -44,7 +44,6 @@ const AdminDashboard: React.FC = () => {
 
     useEffect(() => {
         if (token) {
-            console.log('[DEBUG] AdminDashboard mounted with token. User role:', user?.role);
             refreshData();
         }
     }, [token, user]);
@@ -436,13 +435,13 @@ const AdminDashboard: React.FC = () => {
 
                 {activeTab === 'products' && (
                     <>
-                        <div className="flex justify-between items-center mb-8">
+                        <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4 mb-8">
                             <h2 className="text-2xl font-heading text-foreground">Catálogo de Productos</h2>
-                            <div className="flex gap-4">
+                            <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 w-full sm:w-auto">
                                 <button
                                     onClick={handleImportCSV}
                                     disabled={importing}
-                                    className="bg-white text-secondary border border-background-contrast/20 px-6 py-2.5 text-xs font-bold uppercase tracking-widest hover:bg-background transition-all flex items-center gap-2 disabled:opacity-50"
+                                    className="bg-white text-secondary border border-background-contrast/20 px-4 sm:px-6 py-2.5 text-xs font-bold uppercase tracking-widest hover:bg-background transition-all flex items-center justify-center gap-2 disabled:opacity-50"
                                 >
                                     <span className="material-symbols-outlined text-sm">{importing ? 'sync' : 'csv'}</span> {importing ? 'Importando...' : 'Recargar desde CSV'}
                                 </button>
@@ -452,7 +451,7 @@ const AdminDashboard: React.FC = () => {
                                         setProductFormData({ name: '', price: '', description: '', category: '', images: [], badges: [], rating: '5' });
                                         setShowProductForm(true);
                                     }}
-                                    className="bg-primary text-white px-6 py-2.5 text-xs font-bold uppercase tracking-widest hover:bg-accent transition-all shadow-lg flex items-center gap-2"
+                                    className="bg-primary text-white px-4 sm:px-6 py-2.5 text-xs font-bold uppercase tracking-widest hover:bg-accent transition-all shadow-lg flex items-center justify-center gap-2"
                                 >
                                     <span className="material-symbols-outlined text-sm">add</span> Nuevo Producto
                                 </button>

@@ -264,8 +264,9 @@ const Home: React.FC = () => {
                     <div>
                       <div className="text-xs font-bold text-accent uppercase tracking-widest mb-3">{post.author || 'Starsano'}</div>
                       <h3 className="text-2xl text-foreground mb-3 leading-tight group-hover:underline decoration-1 underline-offset-4">{post.title}</h3>
-                      <p className="text-secondary text-sm line-clamp-2 font-light"
-                        dangerouslySetInnerHTML={{ __html: post.content.replace(/<[^>]*>/g, '').substring(0, 150) + '...' }}></p>
+                      <p className="text-secondary text-sm line-clamp-2 font-light">
+                        {post.content.replace(/<[^>]*>/g, '').substring(0, 150) + '...'}
+                      </p>
                     </div>
                   </article>
                 </Link>

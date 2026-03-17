@@ -111,6 +111,13 @@ class MemoryStore:
         messages = self.fetch_last_messages(thread_id, limit)
         return "\n".join([f"{m['role'].capitalize()}: {m['content']}" for m in messages])
 
+    def count_messages(self, thread_id: str) -> int:
+        row = self.conn.execute(
+            "SELECT COUNT(*) AS total FROM messages WHERE thread_id=?",
+            (thread_id,),
+        ).fetchone()
+        return int(row["total"]) if row else 0
+
 # ----------------------------
 # Construcción de contexto
 # ----------------------------

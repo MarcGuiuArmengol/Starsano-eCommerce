@@ -41,7 +41,7 @@ const Contact: React.FC = () => {
         <div className="bg-background min-h-screen">
             {/* Header */}
             <div className="pt-20 pb-12 text-center px-4">
-                <h1 className="text-5xl md:text-6xl text-foreground mb-4">Contacto</h1>
+                <h1 className="text-4xl sm:text-5xl md:text-6xl text-foreground mb-4">Contacto</h1>
                 <p className="text-secondary max-w-xl mx-auto font-light text-lg">
                     ¿Tienes dudas sobre nuestros productos o envíos? Estamos aquí para ayudarte en tu camino al bienestar.
                 </p>
@@ -51,7 +51,7 @@ const Contact: React.FC = () => {
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-0 lg:gap-16 items-start">
 
                     {/* Info Side */}
-                    <div className="bg-primary text-white p-10 md:p-16 rounded-t-lg lg:rounded-lg shadow-xl relative overflow-hidden">
+                    <div className="bg-primary text-white p-6 sm:p-10 md:p-16 rounded-t-lg lg:rounded-lg shadow-xl relative overflow-hidden">
                         <div className="relative z-10">
                             <h2 className="text-3xl text-white mb-8">Información</h2>
 
@@ -109,7 +109,7 @@ const Contact: React.FC = () => {
                     </div>
 
                     {/* Form Side */}
-                    <div className="bg-white p-10 md:p-16 rounded-b-lg lg:rounded-lg shadow-sm border border-background-contrast/20">
+                    <div className="bg-white p-6 sm:p-10 md:p-16 rounded-b-lg lg:rounded-lg shadow-sm border border-background-contrast/20">
                         <h2 className="text-3xl text-foreground mb-8">Envíanos un mensaje</h2>
                         <form className="space-y-6" onSubmit={handleSubmit}>
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -195,7 +195,7 @@ const Contact: React.FC = () => {
                 </div>
 
                 {/* Map Section */}
-                <div className="mt-16 rounded-2xl overflow-hidden shadow-2xl border border-background-contrast/10 h-[450px] relative group">
+                <div className="mt-16 rounded-2xl overflow-hidden shadow-2xl border border-background-contrast/10 h-[320px] sm:h-[400px] md:h-[450px] relative group">
                     <iframe
                         src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3761.3524671408017!2d-99.21950002388062!3d19.55325068175073!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x85d21cf15222688b%3A0x673c68383cf85f7a!2sBlv.%20Popocat%C3%A9petl%2097%2C%20Hab%20los%20Pirules%2C%2054040%20Tlalnepantla%20de%20Baz%2C%20M%C3%A9x.%2C%20Mexico!5e0!3m2!1sen!2smx!4v1709192400000!5m2!1sen!2smx"
                         width="100%"

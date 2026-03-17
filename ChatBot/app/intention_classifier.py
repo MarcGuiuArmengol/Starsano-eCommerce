@@ -1,5 +1,7 @@
 import os
 import json
+import re
+import unicodedata
 from typing import Literal, Dict, Any, List, Optional
 from langchain_openai import ChatOpenAI
 from langchain.prompts import PromptTemplate
@@ -27,7 +29,7 @@ assistant_llm = ChatOpenAI(
 angry_llm = ChatOpenAI(
     model=OPENAI_MODEL,
     api_key=os.environ.get("OPENAI_API_KEY"),
-    temperature=0.3
+    temperature=0.1
 )
 
 INTENTION_PROMPT = """Eres un clasificador de intención para mensajes de clientes de la tienda starsano.com.mx.
@@ -114,15 +116,24 @@ Now, respond to the following user message:
 User: {user_message}
 """
 
-NEED_HUMAN_PROMPT = """You are the Starsano AI assistant. The user is upset or needs human intervention.
-Respond in Spanish with empathy and redirect them to human support (+52 56 3082 0401).
+NEED_HUMAN_PROMPT = """Eres el asistente de Starsano.
 
-The previous messages with this user are:
+El usuario necesita intervención humana para una gestión operativa (cancelación, cambio, devolución, reembolso, incidencia de pago, etc.).
+
+Reglas de estilo (MUY IMPORTANTES):
+- Responde en español, tono profesional y cercano, sin dramatizar.
+- No asumas emociones del usuario si no las expresó.
+- Evita frases exageradas como "lamento mucho que estés pasando por esto".
+- Sé breve: 1-2 frases.
+- Indica claramente que lo gestiona soporte humano y da este contacto: +52 56 3082 0401.
+
+Historial previo:
 {previous_messages}
 
-Now respond to the following user message:
-User: {user_message}
-"""
+Mensaje actual:
+{user_message}
+
+Respuesta breve:"""
 
 PRODUCT_SEARCH_PROMPT = """You are the Starsano AI Product Expert. Your goal is to help customers find the right products from our catalog in a helpful and conversational way.
 
@@ -187,8 +198,30 @@ def extract_search_keywords(message: str) -> str:
         print(f"Error extrayendo keywords: {e}")
         return message
 
+def _normalize_text(value: str) -> str:
+    normalized = unicodedata.normalize("NFD", value or "")
+    without_accents = "".join(ch for ch in normalized if unicodedata.category(ch) != "Mn")
+    without_symbols = re.sub(r"[^a-zA-Z0-9\s]", " ", without_accents.lower())
+    return re.sub(r"\s+", " ", without_symbols).strip()
+
 def classify_intention(message: str, context: str = "", history: str = "") -> Literal["product_search", "general_question", "order_tracking", "need_human"]:
     try:
+        normalized_message = _normalize_text(message)
+
+        gratitude_terms = {
+            "gracias", "muchas gracias", "ok gracias", "vale gracias", "perfecto gracias",
+            "genial gracias", "thanks", "thank you"
+        }
+        if normalized_message in gratitude_terms:
+            return "general_question"
+
+        order_tracking_terms = [
+            "como va mi pedido", "donde esta mi pedido", "estado de mi pedido", "mi pedido",
+            "que producto he pedido", "que productos pedi", "que pedi", "que compre"
+        ]
+        if any(term in normalized_message for term in order_tracking_terms):
+            return "order_tracking"
+
         combined_context = f"{context}\n\nHistorial reciente:\n{history}" if history else context
         prompt = prompt_template.format(message=message, context=combined_context)
         response = llm.invoke(prompt)
@@ -235,11 +268,22 @@ def generate_general_question_response(user_message: str) -> str:
 
 def generate_need_human_response(user_message: str, previous_messages: str = "") -> str:
     try:
+        normalized_message = _normalize_text(user_message)
+
+        if any(term in normalized_message for term in ["cancelar", "cancelacion", "cancelarlo", "cancelarla"]):
+            return "Claro. La cancelación la gestiona un asesor humano; contáctanos al +52 56 3082 0401 y te ayudan en el momento."
+
+        if any(term in normalized_message for term in ["devolucion", "devolver", "reembolso", "reembolsar"]):
+            return "Perfecto, este trámite lo lleva soporte humano. Escríbenos o llámanos al +52 56 3082 0401 y te lo resuelven."
+
+        if normalized_message in {"gracias", "muchas gracias", "ok gracias", "vale gracias", "perfecto gracias"}:
+            return "¡De nada! Si quieres, te paso con soporte al +52 56 3082 0401."
+
         prompt = NEED_HUMAN_PROMPT.format(user_message=user_message, previous_messages=previous_messages)
         response = angry_llm.invoke(prompt)
         return response.content.strip()
     except Exception as e:
-        return "Lamento lo ocurrido. Un asesor te contactará pronto al +52 56 3082 0401."
+        return "Esta gestión la atiende soporte humano. Puedes contactarlos al +52 56 3082 0401 y te ayudan enseguida."
 
 def handle_product_search(message: str, user_id: str, thread_id: str, slots: Dict[str, Any], session_email: Optional[str] = None) -> dict:
     # 1. Búsqueda semántica (RAG)
@@ -271,7 +315,8 @@ def handle_general_question(message: str, user_id: str, thread_id: str, slots: D
     }
 
 def handle_need_human(message: str, user_id: str, thread_id: str, slots: Dict[str, Any], session_email: Optional[str] = None) -> dict:
-    response_text = generate_need_human_response(message)
+    previous_messages = ""
+    response_text = generate_need_human_response(message, previous_messages=previous_messages)
     return {
         "status": "handled", 
         "intention": "need_human", 
@@ -282,6 +327,16 @@ def handle_need_human(message: str, user_id: str, thread_id: str, slots: Dict[st
 
 def handle_order_tracking(message: str, user_id: str, thread_id: str, slots: Dict[str, Any], session_email: Optional[str] = None) -> dict:
     try:
+        normalized_message = _normalize_text(message)
+
+        if normalized_message in {"gracias", "muchas gracias", "ok gracias", "vale gracias", "perfecto gracias"}:
+            return {
+                "status": "handled",
+                "intention": "order_tracking",
+                "response_text": "¡De nada! 😊 Si quieres, también puedo revisar de nuevo el estado de tu pedido cuando lo necesites.",
+                "slots": slots
+            }
+
         # 0. Seguridad: Solo dar info si el usuario está registrado
         if not session_email:
             return {
@@ -301,6 +356,14 @@ def handle_order_tracking(message: str, user_id: str, thread_id: str, slots: Dic
         def format_order_summary(order):
             status_friendly = status_map.get(order['status'], order['status'])
             return f"• **Pedido #{order['id']}**: {status_friendly} (${order['total']} MXN)"
+
+        if any(term in normalized_message for term in ["que producto he pedido", "que productos pedi", "que pedi", "que compre", "que incluye mi pedido", "que trae mi pedido"]):
+            return {
+                "status": "handled",
+                "intention": "order_tracking",
+                "response_text": "Ahora mismo puedo ayudarte con el estado, total y fecha del pedido. Para ver el detalle exacto de productos de tu compra, te recomiendo revisar tu historial en la cuenta o te ayudo por soporte al +52 56 3082 0401.",
+                "slots": slots
+            }
 
         # 1. Si el usuario pregunta genéricamente o usa conectores de seguimiento
         follow_up_keywords = ["ahora", "y?", "mas info", "dime mas", "continuar", "repetir", "el mio"]

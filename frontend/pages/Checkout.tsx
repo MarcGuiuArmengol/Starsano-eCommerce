@@ -98,12 +98,12 @@ const Checkout: React.FC = () => {
                         {/* Shipping */}
                         <div>
                             <h2 className="text-lg font-bold mb-4 uppercase tracking-wider">Envío</h2>
-                            <div className="grid grid-cols-2 gap-4">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                 <input type="text" name="firstName" placeholder="Nombre" className="w-full bg-white border border-background-contrast/50 p-3 rounded-none focus:border-primary focus:ring-0" required onChange={handleChange} />
                                 <input type="text" name="lastName" placeholder="Apellidos" className="w-full bg-white border border-background-contrast/50 p-3 rounded-none focus:border-primary focus:ring-0" required onChange={handleChange} />
                             </div>
                             <input type="text" name="address" placeholder="Dirección" className="w-full bg-white border border-background-contrast/50 p-3 rounded-none focus:border-primary focus:ring-0 mt-4" required onChange={handleChange} />
-                            <div className="grid grid-cols-2 gap-4 mt-4">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4">
                                 <input type="text" name="city" placeholder="Ciudad" className="w-full bg-white border border-background-contrast/50 p-3 rounded-none focus:border-primary focus:ring-0" required onChange={handleChange} />
                                 <input type="text" name="zip" placeholder="Código Postal" className="w-full bg-white border border-background-contrast/50 p-3 rounded-none focus:border-primary focus:ring-0" required onChange={handleChange} />
                             </div>
@@ -117,7 +117,7 @@ const Checkout: React.FC = () => {
                                     <span className="material-symbols-outlined">lock</span> Encriptación SSL de 256-bits
                                 </div>
                                 <input type="text" name="card" placeholder="Número de tarjeta (Opcional Prueba)" className="w-full bg-white border border-background-contrast/50 p-3 rounded-none focus:border-primary focus:ring-0" onChange={handleChange} />
-                                <div className="grid grid-cols-2 gap-4">
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                     <input type="text" name="expiry" placeholder="MM/YY" className="w-full bg-white border border-background-contrast/50 p-3 rounded-none focus:border-primary focus:ring-0" onChange={handleChange} />
                                     <input type="text" name="cvc" placeholder="CVC" className="w-full bg-white border border-background-contrast/50 p-3 rounded-none focus:border-primary focus:ring-0" onChange={handleChange} />
                                 </div>
@@ -129,7 +129,7 @@ const Checkout: React.FC = () => {
                             disabled={loading}
                             className="w-full bg-primary text-white py-4 font-bold uppercase tracking-widest hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                         >
-                            {loading ? 'Procesando...' : `Pagar ${cartTotal.toFixed(2)} €`}
+                            {loading ? 'Procesando...' : `Pagar ${cartTotal.toFixed(2)} MXN`}
                         </button>
                     </div>
 

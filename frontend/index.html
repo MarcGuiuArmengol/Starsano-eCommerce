@@ -14,51 +14,6 @@
       rel="stylesheet"
       href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0"
     />
-    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
-    <script>
-      tailwind.config = {
-        darkMode: "class",
-        theme: {
-          extend: {
-            colors: {
-              background: "#EFECEC", // Beige claro fondo
-              foreground: "#252525", // Texto principal oscuro
-              "background-contrast": "#B5A7A7", // Bordes/Separadores
-              
-              primary: "#2C332F", // Boton primario (Gris oscuro/Verdoso)
-              "primary-foreground": "#FFFFFF", // Texto boton
-              
-              secondary: "#505655", // Texto secundario / Links
-              "secondary-button": "#EFECEC",
-              
-              accent: "#AD910A", // Dorado reviews
-              "accent-light": "rgba(173, 145, 10, 0.1)",
-              
-              white: "#FFFFFF",
-            },
-            fontFamily: {
-              sans: ["Inter", "sans-serif"],
-              serif: ["DM Serif Display", "serif"],
-              heading: ["Poppins", "sans-serif"],
-            },
-            animation: {
-              'fadeIn': 'fadeIn 0.5s ease-out forwards',
-              'slideUp': 'slideUp 0.6s ease-out forwards',
-            },
-            keyframes: {
-              fadeIn: {
-                '0%': { opacity: '0' },
-                '100%': { opacity: '1' },
-              },
-              slideUp: {
-                '0%': { opacity: '0', transform: 'translateY(20px)' },
-                '100%': { opacity: '1', transform: 'translateY(0)' },
-              }
-            }
-          },
-        },
-      };
-    </script>
     <style>
       body {
         font-family: "Inter", sans-serif;
@@ -91,16 +46,6 @@
         background: #505655;
       }
     </style>
-  <script type="importmap">
-{
-  "imports": {
-    "react-dom/": "https://esm.sh/react-dom@^19.2.4/",
-    "react-router-dom": "https://esm.sh/react-router-dom@^7.13.0",
-    "react/": "https://esm.sh/react@^19.2.4/",
-    "react": "https://esm.sh/react@^19.2.4"
-  }
-}
-</script>
 <link rel="stylesheet" href="/index.css">
 </head>
   <body class="bg-background text-foreground antialiased selection:bg-primary selection:text-white">
