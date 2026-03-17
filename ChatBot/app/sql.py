@@ -118,6 +118,33 @@ class MemoryStore:
         ).fetchone()
         return int(row["total"]) if row else 0
 
+    def cleanup_inactive_threads(self, inactive_days: int) -> Dict[str, int]:
+        cutoff_ts = now_ts() - (inactive_days * 24 * 60 * 60)
+        thread_rows = self.conn.execute(
+            "SELECT thread_id FROM threads WHERE updated_at < ?",
+            (cutoff_ts,),
+        ).fetchall()
+        thread_ids = [row["thread_id"] for row in thread_rows]
+
+        if not thread_ids:
+            return {"threads_deleted": 0, "messages_deleted": 0}
+
+        placeholders = ",".join(["?"] * len(thread_ids))
+        msg_cursor = self.conn.execute(
+            f"DELETE FROM messages WHERE thread_id IN ({placeholders})",
+            tuple(thread_ids),
+        )
+        thread_cursor = self.conn.execute(
+            f"DELETE FROM threads WHERE thread_id IN ({placeholders})",
+            tuple(thread_ids),
+        )
+        self.conn.commit()
+
+        return {
+            "threads_deleted": int(thread_cursor.rowcount or 0),
+            "messages_deleted": int(msg_cursor.rowcount or 0),
+        }
+
 # ----------------------------
 # Construcción de contexto
 # ----------------------------

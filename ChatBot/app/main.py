@@ -60,6 +60,8 @@ IO_RETRY_ATTEMPTS = int(os.environ.get("IO_RETRY_ATTEMPTS", "3"))
 SUMMARY_REFRESH_EVERY = int(os.environ.get("SUMMARY_REFRESH_EVERY", "12"))
 SUMMARY_CONTEXT_MESSAGES = int(os.environ.get("SUMMARY_CONTEXT_MESSAGES", "30"))
 SUMMARY_MODEL = os.environ.get("SUMMARY_MODEL") or os.environ.get("OPENAI_MODEL", "gpt-4o-mini")
+CONVERSATION_RETENTION_DAYS = int(os.environ.get("CONVERSATION_RETENTION_DAYS", "10"))
+CONVERSATION_CLEANUP_INTERVAL_SECONDS = int(os.environ.get("CONVERSATION_CLEANUP_INTERVAL_SECONDS", "3600"))
 
 # Inicializar el almacenamiento de memoria
 memory_store = MemoryStore("data/chatbot.db")
@@ -104,6 +106,9 @@ rate_limiter = SlidingWindowRateLimiter(
 )
 summary_inflight: set[str] = set()
 summary_lock = threading.Lock()
+cleanup_lock = threading.Lock()
+cleanup_running = False
+last_cleanup_ts = 0
 
 reindex_status: Dict[str, Any] = {
     "running": False,
@@ -228,6 +233,38 @@ def schedule_summary_refresh(thread_id: str):
             return
         summary_inflight.add(thread_id)
     io_executor.submit(_refresh_summary_task, thread_id)
+
+
+def _run_conversation_cleanup(force: bool = False):
+    global cleanup_running, last_cleanup_ts
+
+    now = int(time.time())
+    with cleanup_lock:
+        if cleanup_running:
+            return
+        if not force and (now - last_cleanup_ts) < CONVERSATION_CLEANUP_INTERVAL_SECONDS:
+            return
+        cleanup_running = True
+
+    try:
+        result = memory_store.cleanup_inactive_threads(CONVERSATION_RETENTION_DAYS)
+        last_cleanup_ts = now
+        if result.get("threads_deleted", 0) > 0:
+            logger.info(
+                "conversation_cleanup_completed retention_days=%s threads_deleted=%s messages_deleted=%s",
+                CONVERSATION_RETENTION_DAYS,
+                result.get("threads_deleted", 0),
+                result.get("messages_deleted", 0),
+            )
+    except Exception as exc:
+        logger.exception("conversation_cleanup_failed error=%s", exc)
+    finally:
+        with cleanup_lock:
+            cleanup_running = False
+
+
+def schedule_conversation_cleanup(force: bool = False):
+    io_executor.submit(_run_conversation_cleanup, force)
 
 def send_alert_email(user_id: str, message_text: str) -> bool:
     destination_email = db_client.get_contact_email_setting() or ALERT_EMAIL_TO
@@ -356,6 +393,8 @@ async def chat_web(payload: ChatRequest, request: Request):
     if not rate_limiter.allow(f"chat-session:{payload.session_id}"):
         raise HTTPException(status_code=429, detail="Too many requests for this session")
 
+    schedule_conversation_cleanup(force=False)
+
     try:
         res = await asyncio.wait_for(
             run_in_threadpool(process_logic, payload.session_id, payload.message, payload.email),
@@ -391,3 +430,8 @@ def admin_reindex_status(request: Request):
 @app.get("/health")
 def health():
     return {"status": "ok"}
+
+
+@app.on_event("startup")
+def on_startup_cleanup():
+    schedule_conversation_cleanup(force=True)
