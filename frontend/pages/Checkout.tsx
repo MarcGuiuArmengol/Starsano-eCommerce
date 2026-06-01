@@ -5,7 +5,7 @@ import { useUser } from '../context/UserContext';
 import { api } from '../services/api';
 
 const Checkout: React.FC = () => {
-    const { cart, cartTotal, clearCart } = useCart();
+    const { items, cartTotal, clearCart } = useCart();
     const navigate = useNavigate();
     const { user, token } = useUser();
     const [loading, setLoading] = useState(false);
@@ -40,7 +40,7 @@ const Checkout: React.FC = () => {
 
         try {
             const orderData = {
-                items: cart,
+                items: items,
                 total: cartTotal,
                 shipping_details: {
                     firstName: formData.firstName,
@@ -64,7 +64,7 @@ const Checkout: React.FC = () => {
         }
     };
 
-    if (cart.length === 0) {
+    if (items.length === 0) {
         return (
             <div className="min-h-[70vh] flex flex-col items-center justify-center">
                 <h2 className="text-2xl font-bold mb-4">Tu carrito está vacío</h2>
@@ -137,7 +137,7 @@ const Checkout: React.FC = () => {
                     <div className="bg-white p-6 md:p-8 h-fit border border-background-contrast/20 lg:sticky lg:top-24">
                         <h2 className="text-lg font-bold mb-6 uppercase tracking-wider border-b border-background-contrast/20 pb-4">Resumen del pedido</h2>
                         <div className="space-y-4 mb-6 max-h-[400px] overflow-y-auto custom-scrollbar">
-                            {cart.map(item => (
+                            {items.map(item => (
                                 <div key={item.id} className="flex gap-4">
                                     <div className="w-16 h-16 bg-background rounded-sm overflow-hidden shrink-0">
                                         <img src={item.images && item.images.length > 0 ? item.images[0] : ''} alt={item.name} className="w-full h-full object-cover bg-[#F5F5F5]" />

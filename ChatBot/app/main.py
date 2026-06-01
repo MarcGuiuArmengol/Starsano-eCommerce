@@ -23,6 +23,7 @@ from .sql import MemoryStore, should_refresh_summary
 from .intention_classifier import classify_intention, route_message
 from .db import db_client
 from .vector_store import vector_store
+from .langchain_adapter import SQLiteMemoryAdapter
 
 # Cargar variables de entorno desde .env
 load_dotenv()
@@ -54,7 +55,7 @@ ALERT_EMAIL_TO = os.environ.get("ALERT_EMAIL_TO")
 MAX_MESSAGE_LENGTH = int(os.environ.get("CHAT_MAX_MESSAGE_LENGTH", "1000"))
 RATE_LIMIT_WINDOW_SECONDS = int(os.environ.get("CHAT_RATE_LIMIT_WINDOW_SECONDS", "60"))
 RATE_LIMIT_MAX_REQUESTS = int(os.environ.get("CHAT_RATE_LIMIT_MAX_REQUESTS", "12"))
-CHAT_TIMEOUT_SECONDS = float(os.environ.get("CHAT_TIMEOUT_SECONDS", "18"))
+CHAT_TIMEOUT_SECONDS = float(os.environ.get("CHAT_TIMEOUT_SECONDS", "60"))
 IO_WORKERS = int(os.environ.get("IO_WORKERS", "4"))
 IO_RETRY_ATTEMPTS = int(os.environ.get("IO_RETRY_ATTEMPTS", "3"))
 SUMMARY_REFRESH_EVERY = int(os.environ.get("SUMMARY_REFRESH_EVERY", "12"))
@@ -65,6 +66,8 @@ CONVERSATION_CLEANUP_INTERVAL_SECONDS = int(os.environ.get("CONVERSATION_CLEANUP
 
 # Inicializar el almacenamiento de memoria
 memory_store = MemoryStore("data/chatbot.db")
+# LangChain-compatible adapter that wraps the existing SQLite MemoryStore
+memory_adapter = SQLiteMemoryAdapter(memory_store)
 io_executor = ThreadPoolExecutor(max_workers=max(2, IO_WORKERS))
 
 summary_llm = ChatOpenAI(
@@ -327,8 +330,10 @@ def run_reindex_job():
 
 def process_logic(user_id: str, message_text: str, email: Optional[str] = None) -> Dict[str, Any]:
     thread_id = memory_store.get_or_create_thread(user_id)
-    summary, slots = memory_store.load_thread_state(thread_id)
-    history_text = memory_store.get_history_as_text(thread_id, limit=8)
+    mem = memory_adapter.load_memory_variables({"session_id": thread_id})
+    summary = mem.get("summary", "")
+    slots = mem.get("slots", {}) or {}
+    history_text = mem.get("history", "")
     
     # Añadir mensaje del usuario a la base de datos ANTES de procesar para que salga en el historial si hace falta
     # Pero aquí lo pasamos por separado a la lógica
@@ -343,13 +348,12 @@ def process_logic(user_id: str, message_text: str, email: Optional[str] = None) 
 
     if notify_email:
         enqueue_alert_email(user_id, message_text)
-    
-    # Persistir mensajes y nuevo estado
-    memory_store.append_message(thread_id, "user", message_text)
-    if response_text:
-        memory_store.append_message(thread_id, "assistant", response_text)
-    
-    memory_store.update_thread_state(thread_id, summary, new_slots)
+
+    # Persist messages + updated slots via the LangChain-compatible adapter
+    memory_adapter.save_context(
+        {"session_id": thread_id, "input": message_text, "_summary": summary},
+        {"output": response_text, "_slots": new_slots},
+    )
 
     total_messages = memory_store.count_messages(thread_id)
     if should_refresh_summary(total_messages, every_n=SUMMARY_REFRESH_EVERY):
