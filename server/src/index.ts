@@ -12,6 +12,33 @@ import { hashPassword, comparePassword, generateToken, verifyToken } from './aut
 
 dotenv.config();
 
+// ============================================
+// ENVIRONMENT VALIDATION
+// ============================================
+const requiredEnvVars = ['JWT_SECRET', 'ADMIN_PASSWORD', 'POSTGRES_PASSWORD'];
+const missingVars = requiredEnvVars.filter(v => !process.env[v]);
+
+if (missingVars.length > 0) {
+    console.error('\n❌ FATAL: Missing required environment variables:');
+    missingVars.forEach(v => console.error(`   - ${v}`));
+    console.error('\nPlease create a .env file with all required variables.');
+    console.error('See .env.example for a template.\n');
+    process.exit(1);
+}
+
+// Validate JWT_SECRET has minimum length
+if (process.env.JWT_SECRET!.length < 32) {
+    console.error('\n❌ FATAL: JWT_SECRET must be at least 32 characters long.');
+    console.error('Generate one with: openssl rand -base64 32\n');
+    process.exit(1);
+}
+
+// Warn if using weak defaults
+if (process.env.ADMIN_PASSWORD === 'ChangeMeAtStartup123!' || process.env.POSTGRES_PASSWORD === 'postgres') {
+    console.warn('\n⚠️  WARNING: You are using weak default credentials!');
+    console.warn('These MUST be changed in production.\n');
+}
+
 const app = express();
 const port = process.env.PORT || 3000;
 
@@ -40,17 +67,43 @@ if (!fs.existsSync(uploadDir)) {
     fs.mkdirSync(uploadDir);
 }
 
+// Allowed MIME types and extensions for image uploads
+const ALLOWED_MIME_TYPES = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+const ALLOWED_EXTENSIONS = /\.(jpg|jpeg|png|gif|webp)$/i;
+const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10 MB
+
+// File filter for multer
+const fileFilter = (req: any, file: any, cb: any) => {
+    // Check MIME type
+    if (!ALLOWED_MIME_TYPES.includes(file.mimetype)) {
+        return cb(new Error(`Invalid file type. Allowed types: ${ALLOWED_MIME_TYPES.join(', ')}`));
+    }
+    
+    // Check file extension
+    if (!ALLOWED_EXTENSIONS.test(file.originalname)) {
+        return cb(new Error('Invalid file extension. Only .jpg, .jpeg, .png, .gif, .webp are allowed'));
+    }
+    
+    cb(null, true);
+};
+
 const storage = multer.diskStorage({
     destination: (req: any, file: any, cb: any) => {
         cb(null, uploadDir);
     },
     filename: (req: any, file: any, cb: any) => {
         const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-        cb(null, uniqueSuffix + '-' + file.originalname);
+        // Extract extension from original filename
+        const ext = path.extname(file.originalname);
+        cb(null, uniqueSuffix + ext);
     }
 });
 
-const upload = multer({ storage: storage });
+const upload = multer({ 
+    storage: storage,
+    fileFilter: fileFilter,
+    limits: { fileSize: MAX_FILE_SIZE }
+});
 
 // Serve uploads static
 app.use('/uploads', express.static(uploadDir));
@@ -676,13 +729,30 @@ app.delete('/api/admin/products/:id', authenticateToken, isAdmin, async (req: Re
 });
 
 // ADMIN UPLOAD
-app.post('/api/admin/upload', authenticateToken, isAdmin, upload.single('image'), (req: Request, res: Response) => {
-    const file = (req as any).file;
-    if (!file) {
-        return res.status(400).json({ message: 'No file uploaded' });
-    }
-    const imageUrl = `${req.protocol}://${req.get('host')}/uploads/${file.filename}`;
-    res.json({ imageUrl });
+// ADMIN UPLOAD
+app.post('/api/admin/upload', authenticateToken, isAdmin, (req: Request, res: Response) => {
+    // Use upload middleware with error handling
+    upload.single('image')(req as any, res as any, (err: any) => {
+        if (err) {
+            // Handle multer errors
+            if (err instanceof multer.MulterError) {
+                if (err.code === 'LIMIT_FILE_SIZE') {
+                    return res.status(400).json({ message: `File too large. Maximum size: ${MAX_FILE_SIZE / 1024 / 1024}MB` });
+                }
+                return res.status(400).json({ message: `Upload error: ${err.message}` });
+            }
+            // Handle custom file filter errors
+            return res.status(400).json({ message: err.message || 'Invalid file' });
+        }
+        
+        const file = (req as any).file;
+        if (!file) {
+            return res.status(400).json({ message: 'No file uploaded' });
+        }
+        
+        const imageUrl = `${req.protocol}://${req.get('host')}/uploads/${file.filename}`;
+        res.json({ imageUrl });
+    });
 });
 
 // ADMIN CATEGORY CRUD

@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import DOMPurify from 'dompurify';
 import { api } from '../services/api';
 import { useUser } from '../context/UserContext';
 
@@ -64,8 +65,15 @@ const ChatWidget: React.FC = () => {
     };
 
     const renderContent = (content: string) => {
-        // First, clean up all double asterisks from the text
-        const cleanContent = content.replace(/\*\*/g, '');
+        // Sanitize content to prevent XSS
+        const sanitized = DOMPurify.sanitize(content, {
+            ALLOWED_TAGS: [],
+            ALLOWED_ATTR: [],
+            KEEP_CONTENT: true
+        });
+
+        // Clean up all double asterisks from the text
+        const cleanContent = sanitized.replace(/\*\*/g, '');
 
         // Basic line splitting for bullet points
         const lines = cleanContent.split('\n');
@@ -83,6 +91,18 @@ const ChatWidget: React.FC = () => {
                 }
 
                 const [full, text, url] = match;
+                
+                // Validate URL to prevent javascript: and data: protocols
+                const isValidUrl = !url.startsWith('javascript:') && 
+                                   !url.startsWith('data:') &&
+                                   !url.startsWith('vbscript:');
+                
+                if (!isValidUrl) {
+                    parts.push(`[${text}](invalid)`);
+                    lastIndex = match.index + full.length;
+                    continue;
+                }
+                
                 // If it's internal, parse slightly better
                 const isInternal = url.startsWith('/') || url.includes('localhost') || url.includes('starsano.com');
                 const path = isInternal ? (url.includes('#') ? url.split('#')[1] : url) : url;
@@ -94,7 +114,7 @@ const ChatWidget: React.FC = () => {
                                 onClick={() => navigate(path)}
                                 className="inline-flex items-center gap-1 bg-primary/10 text-primary px-3 py-1 rounded-full text-[11px] font-bold hover:bg-primary hover:text-white transition-all border border-primary/20"
                             >
-                                {text}
+                                {DOMPurify.sanitize(text)}
                                 <span className="material-symbols-outlined text-[10px]">arrow_forward</span>
                             </button>
                         ) : (
@@ -104,7 +124,7 @@ const ChatWidget: React.FC = () => {
                                 target="_blank"
                                 rel="noopener noreferrer"
                             >
-                                {text}
+                                {DOMPurify.sanitize(text)}
                                 <span className="material-symbols-outlined text-[10px]">open_in_new</span>
                             </a>
                         )}

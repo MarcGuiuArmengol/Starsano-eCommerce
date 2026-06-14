@@ -28,6 +28,21 @@ from .langchain_adapter import SQLiteMemoryAdapter
 # Cargar variables de entorno desde .env
 load_dotenv()
 
+# ============================================
+# ENVIRONMENT VALIDATION
+# ============================================
+required_env_vars = ['OPENAI_API_KEY', 'POSTGRES_PASSWORD', 'POSTGRES_USER']
+missing_vars = [v for v in required_env_vars if not os.environ.get(v)]
+
+if missing_vars:
+    logger.error(f"❌ FATAL: Missing required environment variables: {', '.join(missing_vars)}")
+    logger.error("Please check your .env file with all required variables.")
+    exit(1)
+
+# Validate OPENAI_API_KEY format
+if not os.environ.get('OPENAI_API_KEY', '').startswith('sk-'):
+    logger.warning("⚠️  WARNING: OPENAI_API_KEY does not start with 'sk-' - may be invalid")
+
 logging.basicConfig(
     level=os.environ.get("CHATBOT_LOG_LEVEL", "INFO"),
     format="%(asctime)s %(levelname)s %(message)s"
@@ -36,10 +51,11 @@ logger = logging.getLogger("starsano-chatbot")
 
 app = FastAPI(title="Starsano ChatBot API")
 
-# Enable CORS for the frontend
+# Enable CORS - Restrict to allowed origins
+allowed_origins = os.environ.get("ALLOWED_ORIGINS", "http://localhost:8080").split(",")
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Adjust this in production
+    allow_origins=[origin.strip() for origin in allowed_origins],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

@@ -17,29 +17,29 @@ Este README resume cómo ejecutar, inspeccionar y mantener el proyecto en desarr
 
 ---
 
-## Ejecutar (modo recomendado: Docker Compose)
+## 🚀 Ejecutar (Guía Rápida)
 
-1. Copia el archivo de entorno y ajusta variables si hace falta:
+**⚠️ IMPORTANTE:** Antes de ejecutar, sigue la [guía de configuración inicial](SETUP.md) para:
+1. Generar variables de entorno seguras (JWT_SECRET, ADMIN_PASSWORD, etc.)
+2. Crear archivo `.env` con valores reales
+3. Validar configuración
 
-```bash
-cp .env.example .env
-# (editar .env con credenciales: POSTGRES_*, SMTP_*, OPENAI_API_KEY, etc.)
-```
-
-2. Levanta todos los servicios con Docker Compose:
+### Quick Start (después de seguir SETUP.md):
 
 ```bash
 docker compose up --build
 ```
 
 Servicios principales:
-- `frontend`: puerto 8080
-- `backend` (Node): puerto 3000 (dentro de la red Docker)
-- `chatbot`: puerto 8000 (dentro de la red Docker)
-- `seo-writer`: puerto 8001 (dentro de la red Docker)
-- `postgres` : puerto 5432
+- `frontend`: http://localhost:8080
+- `backend`: http://localhost:3000
+- `chatbot`: http://localhost:8000
+- `seo-writer`: http://localhost:8001
+- `postgres`: puerto 5432
 
-Nota: `frontend` en desarrollo usa un proxy (Vite) que reescribe `/api` → `backend:3000` y `/chat_api` → `chatbot:8000`.
+Acceder a la aplicación en http://localhost:8080 con:
+- Email: `admin@starsano.com.mx`
+- Password: (la que configuraste en `.env`)
 
 ---
 
@@ -110,19 +110,4 @@ curl -X POST http://chatbot:8000/admin/reindex
 ```
 
 El endpoint está protegido para llamadas desde la red interna/localhost (`require_internal_request`).
-
----
-
-## Preparación para entrega / checklist
-
-- [x] Código revisado y UI básica funcional.
-- [x] Adaptador LangChain para memoria agregado (`ChatBot/app/langchain_adapter.py`).
-- [x] Correcciones menores en frontend para consistencia (p.ej. `Checkout.tsx`).
-- [x] Instrucciones de ejecución y debugging incluidas aquí.
-
----
-
-## Contacto y soporte
-
-Si necesitas ayuda con el despliegue en un entorno concreto (CI/CD, hosting, etc.), detalla el entorno objetivo y proporciono pasos concretos.
 
